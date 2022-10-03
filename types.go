@@ -2,57 +2,59 @@ package tracing
 
 import (
 	"context"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"net/url"
 	"sync/atomic"
 
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	otlog "github.com/opentracing/opentracing-go/log"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
-func logError(s opentracing.Span, err error) {
-	s.SetTag(string(ext.Error), true)
-	s.LogFields(otlog.Error(err))
+const errorAttribute = "error"
+
+func logError(s trace.Span, err error, fields ...attribute.KeyValue) {
+	s.RecordError(err, append(fields, attribute.Bool(errorAttribute, true)))
 	m := retry.Check(err)
 	if v := s.BaggageItem("idempotent"); v != "" {
-		s.SetTag(string(ext.Error)+".retryable", m.MustRetry(v == "true"))
+		s.SetAttributes(attribute.String(errorAttribute+".retryable", m.MustRetry(v == "true")))
 	}
-	s.SetTag(string(ext.Error)+".delete_session", m.MustDeleteSession())
+	s.SetAttributes(attribute.String(errorAttribute+".delete_session", m.MustDeleteSession()))
 }
 
-func finish(s opentracing.Span, err error, fields ...otlog.Field) {
+func finish(s trace.Span, err error, fields ...attribute.KeyValue) {
 	if err != nil {
-		logError(s, err)
+		logError(s, err, fields...)
+	} else {
+		s.SetAttributes(fields...)
 	}
-	s.LogFields(fields...)
-	s.Finish()
+	s.End()
 }
 
-func intermediate(s opentracing.Span, err error, fields ...otlog.Field) {
+func intermediate(s trace.Span, err error, fields ...attribute.KeyValue) {
 	if err != nil {
-		logError(s, err)
+		logError(s, err, fields...)
+	} else {
+		s.SetAttributes(fields...)
 	}
-	s.LogFields(fields...)
 }
 
 type counter struct {
-	span    opentracing.Span
+	span    trace.Span
 	counter int64
 	name    string
 }
 
 func (s *counter) add(delta int64) {
 	atomic.AddInt64(&s.counter, delta)
-	s.span.LogFields(
-		otlog.Int64(s.name, atomic.LoadInt64(&s.counter)),
+	s.span.SetAttributes(
+		attribute.Int64(s.name, atomic.LoadInt64(&s.counter)),
 	)
 }
 
-func startSpanWithCounter(ctx *context.Context, operationName string, counterName string, fields ...otlog.Field) (c *counter) {
+func startSpanWithCounter(ctx *context.Context, operationName string, counterName string, fields ...attribute.KeyValue) (c *counter) {
 	defer func() {
-		c.span.SetTag("ydb.driver.sensor", operationName+"_"+counterName)
+		c.span.SetAttributes(attribute.String("ydb.driver.sensor", operationName+"_"+counterName))
 	}()
 	return &counter{
 		span:    startSpan(ctx, operationName, fields...),
@@ -61,29 +63,27 @@ func startSpanWithCounter(ctx *context.Context, operationName string, counterNam
 	}
 }
 
-func startSpan(ctx *context.Context, operationName string, fields ...otlog.Field) (s opentracing.Span) {
+func startSpan(ctx *context.Context, operationName string, fields ...attribute.KeyValue) (s trace.Span) {
 	if ctx != nil {
 		var childCtx context.Context
-		s, childCtx = opentracing.StartSpanFromContext(*ctx, operationName)
+		s, childCtx = trace.StartSpanFromContext(*ctx, operationName)
 		*ctx = childCtx
 	} else {
-		s = opentracing.StartSpan(operationName)
+		s = trace.StartSpan(operationName)
 	}
-	s.SetTag("ydb-go-sdk", "v"+ydb.Version)
-	s.LogFields(fields...)
+	s.SetAttributes(append(fields, attribute.String("ydb-go-sdk", "v"+ydb.Version)))
 	return s
 }
 
-func followSpan(related opentracing.SpanContext, ctx *context.Context, operationName string, fields ...otlog.Field) (s opentracing.Span) {
+func followSpan(related trace.SpanContext, ctx *context.Context, operationName string, fields ...attribute.KeyValue) (s trace.Span) {
 	if ctx != nil {
 		var childCtx context.Context
-		s, childCtx = opentracing.StartSpanFromContext(*ctx, operationName, opentracing.FollowsFrom(related))
+		s, childCtx = trace.StartSpanFromContext(*ctx, operationName, trace.FollowsFrom(related))
 		*ctx = childCtx
 	} else {
-		s = opentracing.StartSpan(operationName)
+		s = trace.StartSpan(operationName)
 	}
-	s.SetTag("ydb-go-sdk", "v"+ydb.Version)
-	s.LogFields(fields...)
+	s.SetAttributes(append(fields, attribute.String("ydb-go-sdk", "v"+ydb.Version)))
 	return s
 }
 

@@ -1,8 +1,7 @@
 package tracing
 
 import (
-	otlog "github.com/opentracing/opentracing-go/log"
-	"github.com/ydb-platform/ydb-go-sdk-opentracing/internal/str"
+	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/str"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )

@@ -13,10 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
 	jaegerConfig "github.com/uber/jaeger-client-go/config"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/balancers"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
@@ -24,7 +22,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 
-	tracing "github.com/ydb-platform/ydb-go-sdk-opentracing"
+	tracing "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
 )
 
 func init() {

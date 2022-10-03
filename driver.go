@@ -1,11 +1,9 @@
 package tracing
 
 import (
-	otlog "github.com/opentracing/opentracing-go/log"
-
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 
-	"github.com/ydb-platform/ydb-go-sdk-opentracing/internal/safe"
+	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
 )
 
 // Driver makes Driver with publishing traces
