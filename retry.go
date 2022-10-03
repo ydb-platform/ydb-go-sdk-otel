@@ -1,9 +1,8 @@
-package tracing
+package ydb_otel
 
 import (
-	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/str"
-
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func Retry(details trace.Details) (t trace.Retry) {
@@ -12,14 +11,14 @@ func Retry(details trace.Details) (t trace.Retry) {
 			start := startSpan(
 				info.Context,
 				"ydb_retry",
+				attribute.Bool("idempotent", info.Idempotent),
 			)
-			start.SetBaggageItem("idempotent", str.Bool(info.Idempotent))
 			return func(info trace.RetryLoopIntermediateInfo) func(trace.RetryLoopDoneInfo) {
 				intermediate(start, info.Error)
 				return func(info trace.RetryLoopDoneInfo) {
 					finish(start,
 						info.Error,
-						otlog.Int("attempts", info.Attempts),
+						attribute.Int("attempts", info.Attempts),
 					)
 				}
 			}

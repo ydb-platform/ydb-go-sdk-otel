@@ -1,25 +1,32 @@
-package tracing
+package ydb_otel
 
 import (
 	"context"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"net/url"
 	"sync/atomic"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
 )
 
-const errorAttribute = "error"
+const (
+	errorAttribute = "error"
+	tracerID       = "ydb-go-sdk"
+	version        = "v" + ydb.Version
+)
 
 func logError(s trace.Span, err error, fields ...attribute.KeyValue) {
-	s.RecordError(err, append(fields, attribute.Bool(errorAttribute, true)))
+	s.RecordError(err, trace.WithAttributes(append(fields, attribute.Bool(errorAttribute, true))...))
 	m := retry.Check(err)
-	if v := s.BaggageItem("idempotent"); v != "" {
-		s.SetAttributes(attribute.String(errorAttribute+".retryable", m.MustRetry(v == "true")))
-	}
-	s.SetAttributes(attribute.String(errorAttribute+".delete_session", m.MustDeleteSession()))
+	s.SetAttributes(
+		attribute.Bool(errorAttribute+".delete_session", m.MustDeleteSession()),
+		attribute.Bool(errorAttribute+".must_retry", m.MustRetry(false)),
+		attribute.Bool(errorAttribute+".must_retry_idempotent", m.MustRetry(true)),
+	)
 }
 
 func finish(s trace.Span, err error, fields ...attribute.KeyValue) {
@@ -53,9 +60,7 @@ func (s *counter) add(delta int64) {
 }
 
 func startSpanWithCounter(ctx *context.Context, operationName string, counterName string, fields ...attribute.KeyValue) (c *counter) {
-	defer func() {
-		c.span.SetAttributes(attribute.String("ydb.driver.sensor", operationName+"_"+counterName))
-	}()
+	fields = append(fields, attribute.String("ydb.driver.sensor", operationName+"_"+counterName))
 	return &counter{
 		span:    startSpan(ctx, operationName, fields...),
 		counter: 0,
@@ -64,26 +69,22 @@ func startSpanWithCounter(ctx *context.Context, operationName string, counterNam
 }
 
 func startSpan(ctx *context.Context, operationName string, fields ...attribute.KeyValue) (s trace.Span) {
-	if ctx != nil {
-		var childCtx context.Context
-		s, childCtx = trace.StartSpanFromContext(*ctx, operationName)
-		*ctx = childCtx
-	} else {
-		s = trace.StartSpan(operationName)
-	}
-	s.SetAttributes(append(fields, attribute.String("ydb-go-sdk", "v"+ydb.Version)))
+	fields = append(fields, attribute.String("ydb-go-sdk", version))
+	*ctx, s = otel.Tracer(tracerID).Start(
+		*ctx,
+		operationName,
+		trace.WithAttributes(fields...),
+	)
 	return s
 }
 
 func followSpan(related trace.SpanContext, ctx *context.Context, operationName string, fields ...attribute.KeyValue) (s trace.Span) {
-	if ctx != nil {
-		var childCtx context.Context
-		s, childCtx = trace.StartSpanFromContext(*ctx, operationName, trace.FollowsFrom(related))
-		*ctx = childCtx
-	} else {
-		s = trace.StartSpan(operationName)
-	}
-	s.SetAttributes(append(fields, attribute.String("ydb-go-sdk", "v"+ydb.Version)))
+	fields = append(fields, attribute.String("ydb-go-sdk", version))
+	*ctx, s = otel.Tracer(tracerID).Start(
+		trace.ContextWithRemoteSpanContext(*ctx, related),
+		operationName,
+		trace.WithAttributes(fields...),
+	)
 	return s
 }
 

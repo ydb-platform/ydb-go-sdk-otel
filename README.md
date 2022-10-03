@@ -1,6 +1,6 @@
-# tracing
+# ydb_otel
 
-tracing package helps to create ydb-go-sdk opentracing traces 
+Opentelemetry traces over ydb-go-sdk events 
 
 ## Usage
 ```go

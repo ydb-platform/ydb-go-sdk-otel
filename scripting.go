@@ -1,8 +1,9 @@
-package tracing
+package ydb_otel
 
 import (
 	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func Scripting(details trace.Details) (t trace.Scripting) {
@@ -11,8 +12,8 @@ func Scripting(details trace.Details) (t trace.Scripting) {
 			start := startSpan(
 				info.Context,
 				"ydb_scripting_execute",
-				otlog.String("query", info.Query),
-				otlog.String("params", safe.Stringer(info.Parameters)),
+				attribute.String("query", info.Query),
+				attribute.String("params", safe.Stringer(info.Parameters)),
 			)
 			return func(info trace.ScriptingExecuteDoneInfo) {
 				if info.Error == nil {
@@ -38,8 +39,8 @@ func Scripting(details trace.Details) (t trace.Scripting) {
 			start := startSpan(
 				info.Context,
 				"ydb_scripting_stream_execute",
-				otlog.String("query", info.Query),
-				otlog.String("params", safe.Stringer(info.Parameters)),
+				attribute.String("query", info.Query),
+				attribute.String("params", safe.Stringer(info.Parameters)),
 			)
 			return func(
 				info trace.ScriptingStreamExecuteIntermediateInfo,
@@ -56,7 +57,7 @@ func Scripting(details trace.Details) (t trace.Scripting) {
 			start := startSpan(
 				info.Context,
 				"ydb_scripting_explain",
-				otlog.String("query", info.Query),
+				attribute.String("query", info.Query),
 			)
 			return func(info trace.ScriptingExplainDoneInfo) {
 				finish(start, info.Error)

@@ -1,7 +1,10 @@
-package tracing
+package ydb_otel
 
 import (
+	"context"
+	"fmt"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
 )
@@ -14,7 +17,7 @@ func Driver(details trace.Details) (t trace.Driver) {
 				info.Context,
 				"ydb_net_dial",
 			)
-			start.SetTag("address", info.Address)
+			start.SetAttributes(attribute.String("address", info.Address))
 			return func(info trace.DriverNetDialDoneInfo) {
 				finish(start, info.Error)
 			}
@@ -26,8 +29,8 @@ func Driver(details trace.Details) (t trace.Driver) {
 				info.Context,
 				"ydb_repeater_wake_up",
 			)
-			start.SetTag("name", info.Name)
-			start.SetTag("event", info.Event)
+			start.SetAttributes(attribute.String("name", info.Name))
+			start.SetAttributes(attribute.String("event", info.Event))
 			return func(info trace.DriverRepeaterWakeUpDoneInfo) {
 				finish(
 					start,
@@ -42,7 +45,7 @@ func Driver(details trace.Details) (t trace.Driver) {
 				info.Context,
 				"ydb_conn_take",
 			)
-			start.SetTag("address", safe.Address(info.Endpoint))
+			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
 			return func(info trace.DriverConnTakeDoneInfo) {
 				finish(
 					start,
@@ -55,15 +58,19 @@ func Driver(details trace.Details) (t trace.Driver) {
 				info.Context,
 				"ydb_conn_invoke",
 			)
-			start.SetTag("address", safe.Address(info.Endpoint))
-			start.SetTag("method", string(info.Method))
+			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
+			start.SetAttributes(attribute.String("method", string(info.Method)))
 			return func(info trace.DriverConnInvokeDoneInfo) {
+				issues := make([]string, len(info.Issues))
+				for i, issue := range info.Issues {
+					issues[i] = fmt.Sprintf("%+v", issue)
+				}
 				finish(
 					start,
 					info.Error,
-					otlog.Object("issues", info.Issues),
-					otlog.String("opID", info.OpID),
-					otlog.String("state", safe.Stringer(info.State)),
+					attribute.StringSlice("issues", issues),
+					attribute.String("opID", info.OpID),
+					attribute.String("state", safe.Stringer(info.State)),
 				)
 			}
 		}
@@ -72,15 +79,15 @@ func Driver(details trace.Details) (t trace.Driver) {
 				info.Context,
 				"ydb_conn_new_stream",
 			)
-			start.SetTag("address", safe.Address(info.Endpoint))
-			start.SetTag("method", string(info.Method))
+			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
+			start.SetAttributes(attribute.String("method", string(info.Method)))
 			return func(info trace.DriverConnNewStreamRecvInfo) func(trace.DriverConnNewStreamDoneInfo) {
 				intermediate(start, info.Error)
 				return func(info trace.DriverConnNewStreamDoneInfo) {
 					finish(
 						start,
 						info.Error,
-						otlog.String("state", safe.Stringer(info.State)),
+						attribute.String("state", safe.Stringer(info.State)),
 					)
 				}
 			}
@@ -90,7 +97,7 @@ func Driver(details trace.Details) (t trace.Driver) {
 				info.Context,
 				"ydb_conn_park",
 			)
-			start.SetTag("address", safe.Address(info.Endpoint))
+			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
 			return func(info trace.DriverConnParkDoneInfo) {
 				finish(
 					start,
@@ -103,7 +110,7 @@ func Driver(details trace.Details) (t trace.Driver) {
 				info.Context,
 				"ydb_conn_close",
 			)
-			start.SetTag("address", safe.Address(info.Endpoint))
+			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
 			return func(info trace.DriverConnCloseDoneInfo) {
 				finish(
 					start,
@@ -115,16 +122,16 @@ func Driver(details trace.Details) (t trace.Driver) {
 			start := startSpan(
 				info.Context,
 				"ydb_conn_ban",
-				otlog.String("state", safe.Stringer(info.State)),
-				otlog.String("cause", safe.Error(info.Cause)),
+				attribute.String("state", safe.Stringer(info.State)),
+				attribute.String("cause", safe.Error(info.Cause)),
 			)
-			start.SetTag("address", safe.Address(info.Endpoint))
-			start.SetTag("nodeID", safe.NodeID(info.Endpoint))
+			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
+			start.SetAttributes(attribute.String("nodeID", safe.NodeID(info.Endpoint)))
 			return func(info trace.DriverConnBanDoneInfo) {
 				finish(
 					start,
 					nil,
-					otlog.String("state", safe.Stringer(info.State)),
+					attribute.String("state", safe.Stringer(info.State)),
 				)
 			}
 		}
@@ -132,15 +139,15 @@ func Driver(details trace.Details) (t trace.Driver) {
 			start := startSpan(
 				info.Context,
 				"ydb_conn_allow",
-				otlog.String("state", safe.Stringer(info.State)),
+				attribute.String("state", safe.Stringer(info.State)),
 			)
-			start.SetTag("address", safe.Address(info.Endpoint))
-			start.SetTag("nodeID", safe.NodeID(info.Endpoint))
+			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
+			start.SetAttributes(attribute.String("nodeID", safe.NodeID(info.Endpoint)))
 			return func(info trace.DriverConnAllowDoneInfo) {
 				finish(
 					start,
 					nil,
-					otlog.String("state", safe.Stringer(info.State)),
+					attribute.String("state", safe.Stringer(info.State)),
 				)
 			}
 		}
@@ -169,11 +176,15 @@ func Driver(details trace.Details) (t trace.Driver) {
 				info.Context,
 				"ydb_balancer_update",
 			)
-			start.SetTag("need_local_dc", info.NeedLocalDC)
+			start.SetAttributes(attribute.Bool("need_local_dc", info.NeedLocalDC))
 			return func(info trace.DriverBalancerUpdateDoneInfo) {
-				start.SetTag("local_dc", info.LocalDC)
+				start.SetAttributes(attribute.String("local_dc", info.LocalDC))
+				endpoints := make([]string, len(info.Endpoints))
+				for i, e := range info.Endpoints {
+					endpoints[i] = e.String()
+				}
 				finish(start, info.Error,
-					otlog.Object("endpoints", info.Endpoints),
+					attribute.StringSlice("endpoints", endpoints),
 				)
 			}
 		}
@@ -184,8 +195,8 @@ func Driver(details trace.Details) (t trace.Driver) {
 			)
 			return func(info trace.DriverBalancerChooseEndpointDoneInfo) {
 				if info.Error == nil {
-					start.SetTag("address", safe.Address(info.Endpoint))
-					start.SetTag("nodeID", safe.NodeID(info.Endpoint))
+					start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
+					start.SetAttributes(attribute.String("nodeID", safe.NodeID(info.Endpoint)))
 				}
 				finish(start, info.Error)
 			}
@@ -205,22 +216,23 @@ func Driver(details trace.Details) (t trace.Driver) {
 			}
 		}
 	}
-	connectionsTotal := startSpanWithCounter(nil, "ydb_connections", "total")
+	ctx := context.Background()
+	connectionsTotal := startSpanWithCounter(&ctx, "ydb_connections", "total")
 	return t.Compose(trace.Driver{
 		OnInit: func(info trace.DriverInitStartInfo) func(trace.DriverInitDoneInfo) {
 			start := startSpan(
 				info.Context,
 				"ydb_driver_init",
 			)
-			start.SetTag("endpoint", info.Endpoint)
-			start.SetTag("database", info.Database)
-			start.SetTag("secure", info.Secure)
+			start.SetAttributes(attribute.String("endpoint", info.Endpoint))
+			start.SetAttributes(attribute.String("database", info.Database))
+			start.SetAttributes(attribute.Bool("secure", info.Secure))
 			return func(info trace.DriverInitDoneInfo) {
 				finish(start, info.Error)
 			}
 		},
 		OnClose: func(info trace.DriverCloseStartInfo) func(trace.DriverCloseDoneInfo) {
-			connectionsTotal.span.Finish()
+			connectionsTotal.span.End()
 			start := startSpan(
 				info.Context,
 				"ydb_driver_close",

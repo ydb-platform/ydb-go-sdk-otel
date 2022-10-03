@@ -1,9 +1,12 @@
-package tracing
+package ydb_otel
 
 import (
-	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
-	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/str"
+	"go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+
+	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
 )
 
 // DatabaseSQL makes trace.DatabaseSQL with logging events from details
@@ -52,7 +55,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 			start := startSpan(
 				info.Context,
 				prefix+"_prepare",
-				otlog.String("query", info.Query),
+				attribute.String("query", info.Query),
 			)
 			return func(info trace.DatabaseSQLConnPrepareDoneInfo) {
 				finish(
@@ -65,10 +68,10 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 			start := startSpan(
 				info.Context,
 				prefix+"_exec",
-				otlog.String("query", info.Query),
-				otlog.String("query_mode", info.Mode),
+				attribute.String("query", info.Query),
+				attribute.String("query_mode", info.Mode),
+				attribute.Bool("idempotent", info.Idempotent),
 			)
-			start.SetBaggageItem("idempotent", str.Bool(info.Idempotent))
 			return func(info trace.DatabaseSQLConnExecDoneInfo) {
 				finish(
 					start,
@@ -80,10 +83,10 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 			start := startSpan(
 				info.Context,
 				prefix+"_query",
-				otlog.String("query", info.Query),
-				otlog.String("query_mode", info.Mode),
+				attribute.String("query", info.Query),
+				attribute.String("query_mode", info.Mode),
+				attribute.Bool("idempotent", info.Idempotent),
 			)
-			start.SetBaggageItem("idempotent", str.Bool(info.Idempotent))
 			return func(info trace.DatabaseSQLConnQueryDoneInfo) {
 				finish(
 					start,
@@ -102,10 +105,10 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 				prefix+"_begin",
 			)
 			return func(info trace.DatabaseSQLConnBeginDoneInfo) {
-				start.SetTag("transaction_id", safe.ID(info.Tx))
 				finish(
 					start,
 					info.Error,
+					attribute.String("transaction_id", safe.ID(info.Tx)),
 				)
 			}
 		}
@@ -113,8 +116,8 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 			start := startSpan(
 				info.Context,
 				prefix+"_rollback",
+				attribute.String("transaction_id", safe.ID(info.Tx)),
 			)
-			start.SetTag("transaction_id", safe.ID(info.Tx))
 			return func(info trace.DatabaseSQLTxRollbackDoneInfo) {
 				finish(
 					start,
@@ -126,8 +129,8 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 			start := startSpan(
 				info.Context,
 				prefix+"_commit",
+				attribute.String("transaction_id", safe.ID(info.Tx)),
 			)
-			start.SetTag("transaction_id", safe.ID(info.Tx))
 			return func(info trace.DatabaseSQLTxCommitDoneInfo) {
 				finish(
 					start,
@@ -137,13 +140,13 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		}
 		t.OnTxExec = func(info trace.DatabaseSQLTxExecStartInfo) func(trace.DatabaseSQLTxExecDoneInfo) {
 			start := followSpan(
-				opentracing.SpanFromContext(info.TxContext).Context(),
+				otelTrace.SpanFromContext(info.TxContext).SpanContext(),
 				info.Context,
 				prefix+"_exec",
-				otlog.String("query", info.Query),
+				attribute.String("query", info.Query),
+				attribute.String("transaction_id", safe.ID(info.Tx)),
+				attribute.Bool("idempotent", info.Idempotent),
 			)
-			start.SetTag("transaction_id", safe.ID(info.Tx))
-			start.SetBaggageItem("idempotent", str.Bool(info.Idempotent))
 			return func(info trace.DatabaseSQLTxExecDoneInfo) {
 				finish(
 					start,
@@ -153,13 +156,13 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		}
 		t.OnTxQuery = func(info trace.DatabaseSQLTxQueryStartInfo) func(trace.DatabaseSQLTxQueryDoneInfo) {
 			start := followSpan(
-				opentracing.SpanFromContext(info.TxContext).Context(),
+				otelTrace.SpanFromContext(info.TxContext).SpanContext(),
 				info.Context,
 				prefix+"_query",
-				otlog.String("query", info.Query),
+				attribute.String("query", info.Query),
+				attribute.String("transaction_id", safe.ID(info.Tx)),
+				attribute.Bool("idempotent", info.Idempotent),
 			)
-			start.SetTag("transaction_id", safe.ID(info.Tx))
-			start.SetBaggageItem("idempotent", str.Bool(info.Idempotent))
 			return func(info trace.DatabaseSQLTxQueryDoneInfo) {
 				finish(
 					start,
@@ -176,7 +179,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 			start := startSpan(
 				info.Context,
 				prefix+"_exec",
-				otlog.String("query", info.Query),
+				attribute.String("query", info.Query),
 			)
 			return func(info trace.DatabaseSQLStmtExecDoneInfo) {
 				finish(
@@ -189,7 +192,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 			start := startSpan(
 				info.Context,
 				prefix+"_query",
-				otlog.String("query", info.Query),
+				attribute.String("query", info.Query),
 			)
 			return func(info trace.DatabaseSQLStmtQueryDoneInfo) {
 				finish(

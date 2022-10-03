@@ -1,6 +1,9 @@
 package safe
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 func Stringer(s fmt.Stringer) string {
 	if s == nil {
@@ -42,11 +45,11 @@ type nodeID interface {
 	NodeID() uint32
 }
 
-func NodeID(n nodeID) uint32 {
+func NodeID(n nodeID) string {
 	if n == nil {
-		return 0
+		return "0"
 	}
-	return n.NodeID()
+	return strconv.FormatUint(uint64(n.NodeID()), 10)
 }
 
 type id interface {

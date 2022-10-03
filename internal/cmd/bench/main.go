@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"log"
 	"math/rand"
 	"net/http"
@@ -13,7 +14,12 @@ import (
 	"sync"
 	"time"
 
-	jaegerConfig "github.com/uber/jaeger-client-go/config"
+	jaegerPropogator "go.opentelemetry.io/contrib/propagators/jaeger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/sdk/resource"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/balancers"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -22,56 +28,66 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 
-	tracing "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
+	ydbOtel "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
+)
+
+const (
+	tracerURL   = "http://localhost:14268/api/traces"
+	serviceName = "ydb-go-sdk"
 )
 
 func init() {
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 500
 }
 
-type quet struct {
-}
+func tracerProvider(url string) (*tracesdk.TracerProvider, error) {
+	exp, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(url)))
+	if err != nil {
+		return nil, err
+	}
 
-func (q quet) Write(p []byte) (n int, err error) {
-	return len(p), nil
-}
+	otel.SetTextMapPropagator(jaegerPropogator.Jaeger{})
 
-const (
-	tracerURL   = "localhost:5775"
-	serviceName = "ydb-go-sdk"
-)
+	tp := tracesdk.NewTracerProvider(
+		// Always be sure to batch in production.
+		tracesdk.WithBatcher(exp),
+		// Record information about this application in a Resource.
+		tracesdk.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceNameKey.String(serviceName),
+		)),
+	)
+
+	otel.SetTracerProvider(tp)
+
+	return tp, nil
+}
 
 func main() {
-	tracer, closer, err := jaegerConfig.Configuration{
-		ServiceName: serviceName,
-		Sampler: &jaegerConfig.SamplerConfig{
-			Type:  "const",
-			Param: 1,
-		},
-		Reporter: &jaegerConfig.ReporterConfig{
-			LogSpans:            true,
-			BufferFlushInterval: 1 * time.Second,
-			LocalAgentHostPort:  tracerURL,
-		},
-	}.NewTracer()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	tp, err := tracerProvider(tracerURL)
 	if err != nil {
 		panic(err)
 	}
+	defer func(ctx context.Context) {
+		// Do not make the application hang when it is shutdown.
+		ctx, cancel = context.WithTimeout(ctx, time.Second*5)
+		defer cancel()
+		if err := tp.Shutdown(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}(ctx)
 
-	defer closer.Close()
+	tr := tp.Tracer(serviceName)
 
-	// set global tracer of this application
-	opentracing.SetGlobalTracer(tracer)
+	ctx, span := tr.Start(ctx, "main")
+	defer span.End()
 
-	span, ctx := opentracing.StartSpanFromContext(context.Background(), "client")
-	defer span.Finish()
-
-	var creds ydb.Option
+	creds := ydb.WithAnonymousCredentials()
 	if token, has := os.LookupEnv("YDB_ACCESS_TOKEN_CREDENTIALS"); has {
 		creds = ydb.WithAccessTokenCredentials(token)
-	}
-	if v, has := os.LookupEnv("YDB_ANONYMOUS_CREDENTIALS"); has && v == "1" {
-		creds = ydb.WithAnonymousCredentials()
 	}
 	db, err := ydb.Open(
 		ctx,
@@ -81,7 +97,7 @@ func main() {
 		creds,
 		ydb.WithSessionPoolSizeLimit(300),
 		ydb.WithSessionPoolIdleThreshold(time.Second*5),
-		tracing.WithTraces(trace.DetailsAll),
+		ydbOtel.WithTraces(trace.DetailsAll),
 	)
 	if err != nil {
 		panic(err)
@@ -89,8 +105,6 @@ func main() {
 	defer func() {
 		_ = db.Close(ctx)
 	}()
-
-	log.SetOutput(&quet{})
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)

@@ -4,12 +4,16 @@ go 1.18
 
 require (
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.38.2
+	go.opentelemetry.io/contrib/propagators/jaeger v1.10.0
 	go.opentelemetry.io/otel v1.10.0
+	go.opentelemetry.io/otel/exporters/jaeger v1.10.0
+	go.opentelemetry.io/otel/sdk v1.10.0
 	go.opentelemetry.io/otel/trace v1.10.0
 )
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/jonboulle/clockwork v0.3.0 // indirect

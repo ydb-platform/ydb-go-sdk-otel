@@ -1,9 +1,9 @@
-package tracing
+package ydb_otel
 
 import (
 	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
-	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/str"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // Table makes table.ClientTrace with solomon metrics publishing
@@ -19,7 +19,7 @@ func Table(details trace.Details) (t trace.Table) {
 				return func(info trace.TableCreateSessionDoneInfo) {
 					finish(start,
 						info.Error,
-						otlog.Int("attempts", info.Attempts),
+						attribute.Int("attempts", info.Attempts),
 					)
 				}
 			}
@@ -28,14 +28,14 @@ func Table(details trace.Details) (t trace.Table) {
 			start := startSpan(
 				info.Context,
 				"ydb_table_do",
+				attribute.Bool("idempotent", info.Idempotent),
 			)
-			start.SetBaggageItem("idempotent", str.Bool(info.Idempotent))
 			return func(info trace.TableDoIntermediateInfo) func(trace.TableDoDoneInfo) {
 				intermediate(start, info.Error)
 				return func(info trace.TableDoDoneInfo) {
 					finish(start,
 						info.Error,
-						otlog.Int("attempts", info.Attempts),
+						attribute.Int("attempts", info.Attempts),
 					)
 				}
 			}
@@ -44,14 +44,14 @@ func Table(details trace.Details) (t trace.Table) {
 			start := startSpan(
 				info.Context,
 				"ydb_table_do_tx",
+				attribute.Bool("idempotent", info.Idempotent),
 			)
-			start.SetBaggageItem("idempotent", str.Bool(info.Idempotent))
 			return func(info trace.TableDoTxIntermediateInfo) func(trace.TableDoTxDoneInfo) {
 				intermediate(start, info.Error)
 				return func(info trace.TableDoTxDoneInfo) {
 					finish(start,
 						info.Error,
-						otlog.Int("attempts", info.Attempts),
+						attribute.Int("attempts", info.Attempts),
 					)
 				}
 			}
@@ -68,19 +68,19 @@ func Table(details trace.Details) (t trace.Table) {
 					finish(
 						start,
 						info.Error,
-						otlog.String("status", safe.Status(info.Session)),
+						attribute.String("status", safe.Status(info.Session)),
+						attribute.String("node_id", nodeID(safe.ID(info.Session))),
+						attribute.String("session_id", safe.ID(info.Session)),
 					)
-					start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-					start.SetTag("session_id", safe.ID(info.Session))
 				}
 			}
 			t.OnSessionDelete = func(info trace.TableSessionDeleteStartInfo) func(trace.TableSessionDeleteDoneInfo) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_delete",
+					attribute.String("node_id", nodeID(safe.ID(info.Session))),
+					attribute.String("session_id", safe.ID(info.Session)),
 				)
-				start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-				start.SetTag("session_id", safe.ID(info.Session))
 				return func(info trace.TableSessionDeleteDoneInfo) {
 					finish(start, info.Error)
 				}
@@ -89,9 +89,9 @@ func Table(details trace.Details) (t trace.Table) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_keep_alive",
+					attribute.String("node_id", nodeID(safe.ID(info.Session))),
+					attribute.String("session_id", safe.ID(info.Session)),
 				)
-				start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-				start.SetTag("session_id", safe.ID(info.Session))
 				return func(info trace.TableKeepAliveDoneInfo) {
 					finish(start, info.Error)
 				}
@@ -107,15 +107,15 @@ func Table(details trace.Details) (t trace.Table) {
 					start := startSpan(
 						info.Context,
 						"ydb_table_session_query_prepare",
-						otlog.String("query", info.Query),
+						attribute.String("query", info.Query),
+						attribute.String("node_id", nodeID(safe.ID(info.Session))),
+						attribute.String("session_id", safe.ID(info.Session)),
 					)
-					start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-					start.SetTag("session_id", safe.ID(info.Session))
 					return func(info trace.TablePrepareDataQueryDoneInfo) {
 						finish(
 							start,
 							info.Error,
-							otlog.String("result", safe.Stringer(info.Result)),
+							attribute.String("result", safe.Stringer(info.Result)),
 						)
 					}
 				}
@@ -127,18 +127,18 @@ func Table(details trace.Details) (t trace.Table) {
 					start := startSpan(
 						info.Context,
 						"ydb_table_session_query_execute",
-						otlog.String("query", safe.Stringer(info.Query)),
-						otlog.String("params", safe.Stringer(info.Parameters)),
+						attribute.String("query", safe.Stringer(info.Query)),
+						attribute.String("params", safe.Stringer(info.Parameters)),
+						attribute.String("node_id", nodeID(safe.ID(info.Session))),
+						attribute.String("session_id", safe.ID(info.Session)),
 					)
-					start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-					start.SetTag("session_id", safe.ID(info.Session))
 					return func(info trace.TableExecuteDataQueryDoneInfo) {
 						if info.Error == nil {
-							start.SetTag("transaction_id", safe.ID(info.Tx))
 							finish(
 								start,
 								safe.Err(info.Result),
-								otlog.Bool("prepared", info.Prepared),
+								attribute.Bool("prepared", info.Prepared),
+								attribute.String("transaction_id", safe.ID(info.Tx)),
 							)
 						} else {
 							finish(
@@ -160,11 +160,11 @@ func Table(details trace.Details) (t trace.Table) {
 					start := startSpan(
 						info.Context,
 						"ydb_table_session_query_stream_execute",
-						otlog.String("query", safe.Stringer(info.Query)),
-						otlog.String("params", safe.Stringer(info.Parameters)),
+						attribute.String("query", safe.Stringer(info.Query)),
+						attribute.String("params", safe.Stringer(info.Parameters)),
+						attribute.String("node_id", nodeID(safe.ID(info.Session))),
+						attribute.String("session_id", safe.ID(info.Session)),
 					)
-					start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-					start.SetTag("session_id", safe.ID(info.Session))
 					return func(
 						info trace.TableSessionQueryStreamExecuteIntermediateInfo,
 					) func(
@@ -186,9 +186,9 @@ func Table(details trace.Details) (t trace.Table) {
 					start := startSpan(
 						info.Context,
 						"ydb_table_session_query_stream_read",
+						attribute.String("node_id", nodeID(safe.ID(info.Session))),
+						attribute.String("session_id", safe.ID(info.Session)),
 					)
-					start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-					start.SetTag("session_id", safe.ID(info.Session))
 					return func(
 						info trace.TableSessionQueryStreamReadIntermediateInfo,
 					) func(
@@ -207,14 +207,14 @@ func Table(details trace.Details) (t trace.Table) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_tx_begin",
+					attribute.String("node_id", nodeID(safe.ID(info.Session))),
+					attribute.String("session_id", safe.ID(info.Session)),
 				)
-				start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-				start.SetTag("session_id", safe.ID(info.Session))
 				return func(info trace.TableSessionTransactionBeginDoneInfo) {
-					start.SetTag("transaction_id", safe.ID(info.Tx))
 					finish(
 						start,
 						info.Error,
+						attribute.String("transaction_id", safe.ID(info.Tx)),
 					)
 				}
 			}
@@ -222,10 +222,10 @@ func Table(details trace.Details) (t trace.Table) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_tx_commit",
+					attribute.String("node_id", nodeID(safe.ID(info.Session))),
+					attribute.String("session_id", safe.ID(info.Session)),
+					attribute.String("transaction_id", safe.ID(info.Tx)),
 				)
-				start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-				start.SetTag("session_id", safe.ID(info.Session))
-				start.SetTag("transaction_id", safe.ID(info.Tx))
 				return func(info trace.TableSessionTransactionCommitDoneInfo) {
 					finish(start, info.Error)
 				}
@@ -234,10 +234,10 @@ func Table(details trace.Details) (t trace.Table) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_tx_rollback",
+					attribute.String("node_id", nodeID(safe.ID(info.Session))),
+					attribute.String("session_id", safe.ID(info.Session)),
+					attribute.String("transaction_id", safe.ID(info.Tx)),
 				)
-				start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-				start.SetTag("session_id", safe.ID(info.Session))
-				start.SetTag("transaction_id", safe.ID(info.Tx))
 				return func(info trace.TableSessionTransactionRollbackDoneInfo) {
 					finish(start, info.Error)
 				}
@@ -246,12 +246,12 @@ func Table(details trace.Details) (t trace.Table) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_tx_execute",
-					otlog.String("query", safe.Stringer(info.Query)),
-					otlog.String("params", safe.Stringer(info.Parameters)),
+					attribute.String("query", safe.Stringer(info.Query)),
+					attribute.String("params", safe.Stringer(info.Parameters)),
+					attribute.String("node_id", nodeID(safe.ID(info.Session))),
+					attribute.String("session_id", safe.ID(info.Session)),
+					attribute.String("transaction_id", safe.ID(info.Tx)),
 				)
-				start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-				start.SetTag("session_id", safe.ID(info.Session))
-				start.SetTag("transaction_id", safe.ID(info.Tx))
 				return func(info trace.TableTransactionExecuteDoneInfo) {
 					finish(start, info.Error)
 				}
@@ -260,11 +260,11 @@ func Table(details trace.Details) (t trace.Table) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_tx_execute_statement",
-					otlog.String("params", safe.Stringer(info.Parameters)),
+					attribute.String("params", safe.Stringer(info.Parameters)),
+					attribute.String("node_id", nodeID(safe.ID(info.Session))),
+					attribute.String("session_id", safe.ID(info.Session)),
+					attribute.String("transaction_id", safe.ID(info.Tx)),
 				)
-				start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-				start.SetTag("session_id", safe.ID(info.Session))
-				start.SetTag("transaction_id", safe.ID(info.Tx))
 				return func(info trace.TableTransactionExecuteStatementDoneInfo) {
 					finish(start, info.Error)
 				}
@@ -282,7 +282,7 @@ func Table(details trace.Details) (t trace.Table) {
 					finish(
 						start,
 						nil,
-						otlog.Int("limit", info.Limit),
+						attribute.Int("limit", info.Limit),
 					)
 				}
 			}
@@ -304,9 +304,9 @@ func Table(details trace.Details) (t trace.Table) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_pool_put",
+					attribute.String("node_id", nodeID(safe.ID(info.Session))),
+					attribute.String("session_id", safe.ID(info.Session)),
 				)
-				start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-				start.SetTag("session_id", safe.ID(info.Session))
 				return func(info trace.TablePoolPutDoneInfo) {
 					finish(start, info.Error)
 				}
@@ -320,11 +320,11 @@ func Table(details trace.Details) (t trace.Table) {
 					finish(
 						start,
 						info.Error,
-						otlog.Int("attempts", info.Attempts),
-						otlog.String("status", safe.Status(info.Session)),
+						attribute.Int("attempts", info.Attempts),
+						attribute.String("status", safe.Status(info.Session)),
+						attribute.String("node_id", nodeID(safe.ID(info.Session))),
+						attribute.String("session_id", safe.ID(info.Session)),
 					)
-					start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-					start.SetTag("session_id", safe.ID(info.Session))
 				}
 			}
 			t.OnPoolWait = func(info trace.TablePoolWaitStartInfo) func(trace.TablePoolWaitDoneInfo) {
@@ -336,10 +336,10 @@ func Table(details trace.Details) (t trace.Table) {
 					finish(
 						start,
 						info.Error,
-						otlog.String("status", safe.Status(info.Session)),
+						attribute.String("status", safe.Status(info.Session)),
+						attribute.String("node_id", nodeID(safe.ID(info.Session))),
+						attribute.String("session_id", safe.ID(info.Session)),
 					)
-					start.SetTag("nodeID", nodeID(safe.ID(info.Session)))
-					start.SetTag("session_id", safe.ID(info.Session))
 				}
 			}
 		}
