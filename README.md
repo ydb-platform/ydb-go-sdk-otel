@@ -1,5 +1,8 @@
 NOT WORKS!
+
 FIX ME!!!
+
+See https://github.com/ydb-platform/ydb-go-sdk-opentracing as previous tooling
 
 # ydb_otel
 
