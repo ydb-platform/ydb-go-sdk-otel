@@ -1,3 +1,6 @@
+NOT WORKS!
+FIX ME!!!
+
 # ydb_otel
 
 Opentelemetry traces over ydb-go-sdk events 
