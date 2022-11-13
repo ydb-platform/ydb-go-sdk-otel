@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"log"
 	"math/rand"
 	"net/http"
@@ -14,21 +13,20 @@ import (
 	"sync"
 	"time"
 
-	jaegerPropogator "go.opentelemetry.io/contrib/propagators/jaeger"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/jaeger"
-	"go.opentelemetry.io/otel/sdk/resource"
-	tracesdk "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
-
+	ydbOtel "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/balancers"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
-
-	ydbOtel "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
+	jaegerPropogator "go.opentelemetry.io/contrib/propagators/jaeger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/sdk/resource"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 )
 
 const (
@@ -56,6 +54,7 @@ func tracerProvider(url string) (*tracesdk.TracerProvider, error) {
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String(serviceName),
 		)),
+		tracesdk.WithSampler(tracesdk.AlwaysSample()),
 	)
 
 	otel.SetTracerProvider(tp)
@@ -89,6 +88,7 @@ func main() {
 	if token, has := os.LookupEnv("YDB_ACCESS_TOKEN_CREDENTIALS"); has {
 		creds = ydb.WithAccessTokenCredentials(token)
 	}
+
 	db, err := ydb.Open(
 		ctx,
 		os.Getenv("YDB_CONNECTION_STRING"),

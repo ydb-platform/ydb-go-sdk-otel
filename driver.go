@@ -3,10 +3,10 @@ package ydb_otel
 import (
 	"context"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
-	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // Driver makes Driver with publishing traces
@@ -16,8 +16,8 @@ func Driver(details trace.Details) (t trace.Driver) {
 			start := startSpan(
 				info.Context,
 				"ydb_net_dial",
+				attribute.String("address", info.Address),
 			)
-			start.SetAttributes(attribute.String("address", info.Address))
 			return func(info trace.DriverNetDialDoneInfo) {
 				finish(start, info.Error)
 			}
@@ -28,9 +28,9 @@ func Driver(details trace.Details) (t trace.Driver) {
 			start := startSpan(
 				info.Context,
 				"ydb_repeater_wake_up",
+				attribute.String("name", info.Name),
+				attribute.String("event", info.Event),
 			)
-			start.SetAttributes(attribute.String("name", info.Name))
-			start.SetAttributes(attribute.String("event", info.Event))
 			return func(info trace.DriverRepeaterWakeUpDoneInfo) {
 				finish(
 					start,
@@ -44,8 +44,8 @@ func Driver(details trace.Details) (t trace.Driver) {
 			start := startSpan(
 				info.Context,
 				"ydb_conn_take",
+				attribute.String("address", safe.Address(info.Endpoint)),
 			)
-			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
 			return func(info trace.DriverConnTakeDoneInfo) {
 				finish(
 					start,
@@ -57,9 +57,9 @@ func Driver(details trace.Details) (t trace.Driver) {
 			start := startSpan(
 				info.Context,
 				"ydb_conn_invoke",
+				attribute.String("address", safe.Address(info.Endpoint)),
+				attribute.String("method", string(info.Method)),
 			)
-			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
-			start.SetAttributes(attribute.String("method", string(info.Method)))
 			return func(info trace.DriverConnInvokeDoneInfo) {
 				issues := make([]string, len(info.Issues))
 				for i, issue := range info.Issues {
@@ -78,9 +78,9 @@ func Driver(details trace.Details) (t trace.Driver) {
 			start := startSpan(
 				info.Context,
 				"ydb_conn_new_stream",
+				attribute.String("address", safe.Address(info.Endpoint)),
+				attribute.String("method", string(info.Method)),
 			)
-			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
-			start.SetAttributes(attribute.String("method", string(info.Method)))
 			return func(info trace.DriverConnNewStreamRecvInfo) func(trace.DriverConnNewStreamDoneInfo) {
 				intermediate(start, info.Error)
 				return func(info trace.DriverConnNewStreamDoneInfo) {
@@ -96,8 +96,8 @@ func Driver(details trace.Details) (t trace.Driver) {
 			start := startSpan(
 				info.Context,
 				"ydb_conn_park",
+				attribute.String("address", safe.Address(info.Endpoint)),
 			)
-			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
 			return func(info trace.DriverConnParkDoneInfo) {
 				finish(
 					start,
@@ -109,8 +109,8 @@ func Driver(details trace.Details) (t trace.Driver) {
 			start := startSpan(
 				info.Context,
 				"ydb_conn_close",
+				attribute.String("address", safe.Address(info.Endpoint)),
 			)
-			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
 			return func(info trace.DriverConnCloseDoneInfo) {
 				finish(
 					start,
@@ -124,9 +124,9 @@ func Driver(details trace.Details) (t trace.Driver) {
 				"ydb_conn_ban",
 				attribute.String("state", safe.Stringer(info.State)),
 				attribute.String("cause", safe.Error(info.Cause)),
+				attribute.String("address", safe.Address(info.Endpoint)),
+				attribute.String("nodeID", safe.NodeID(info.Endpoint)),
 			)
-			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
-			start.SetAttributes(attribute.String("nodeID", safe.NodeID(info.Endpoint)))
 			return func(info trace.DriverConnBanDoneInfo) {
 				finish(
 					start,
@@ -140,9 +140,9 @@ func Driver(details trace.Details) (t trace.Driver) {
 				info.Context,
 				"ydb_conn_allow",
 				attribute.String("state", safe.Stringer(info.State)),
+				attribute.String("address", safe.Address(info.Endpoint)),
+				attribute.String("nodeID", safe.NodeID(info.Endpoint)),
 			)
-			start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
-			start.SetAttributes(attribute.String("nodeID", safe.NodeID(info.Endpoint)))
 			return func(info trace.DriverConnAllowDoneInfo) {
 				finish(
 					start,
@@ -175,8 +175,8 @@ func Driver(details trace.Details) (t trace.Driver) {
 			start := startSpan(
 				info.Context,
 				"ydb_balancer_update",
+				attribute.Bool("need_local_dc", info.NeedLocalDC),
 			)
-			start.SetAttributes(attribute.Bool("need_local_dc", info.NeedLocalDC))
 			return func(info trace.DriverBalancerUpdateDoneInfo) {
 				start.SetAttributes(attribute.String("local_dc", info.LocalDC))
 				endpoints := make([]string, len(info.Endpoints))
@@ -195,8 +195,10 @@ func Driver(details trace.Details) (t trace.Driver) {
 			)
 			return func(info trace.DriverBalancerChooseEndpointDoneInfo) {
 				if info.Error == nil {
-					start.SetAttributes(attribute.String("address", safe.Address(info.Endpoint)))
-					start.SetAttributes(attribute.String("nodeID", safe.NodeID(info.Endpoint)))
+					start.SetAttributes(
+						attribute.String("address", safe.Address(info.Endpoint)),
+						attribute.String("nodeID", safe.NodeID(info.Endpoint)),
+					)
 				}
 				finish(start, info.Error)
 			}
@@ -223,10 +225,10 @@ func Driver(details trace.Details) (t trace.Driver) {
 			start := startSpan(
 				info.Context,
 				"ydb_driver_init",
+				attribute.String("endpoint", info.Endpoint),
+				attribute.String("database", info.Database),
+				attribute.Bool("secure", info.Secure),
 			)
-			start.SetAttributes(attribute.String("endpoint", info.Endpoint))
-			start.SetAttributes(attribute.String("database", info.Database))
-			start.SetAttributes(attribute.Bool("secure", info.Secure))
 			return func(info trace.DriverInitDoneInfo) {
 				finish(start, info.Error)
 			}
