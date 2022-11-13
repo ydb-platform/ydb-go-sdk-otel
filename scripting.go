@@ -1,9 +1,8 @@
 package ydb
 
 import (
-	"go.opentelemetry.io/otel/attribute"
-
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
 )
