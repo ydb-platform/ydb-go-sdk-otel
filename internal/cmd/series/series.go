@@ -63,43 +63,45 @@ func selectDefault(ctx context.Context, db *sql.DB, prefix string) (err error) {
 	if err != nil {
 		return fmt.Errorf("explain query failed: %w", err)
 	}
-	err = retry.Do(ydb.WithTxControl(ctx, table.OnlineReadOnlyTxControl()), db, func(ctx context.Context, cc *sql.Conn) (err error) {
-		rows, err := cc.QueryContext(ctx,
-			render(
-				template.Must(template.New("").Parse(`
+	err = retry.Do(ydb.WithTxControl(ctx, table.OnlineReadOnlyTxControl()), db,
+		func(ctx context.Context, cc *sql.Conn) (err error) {
+			rows, err := cc.QueryContext(ctx,
+				render(
+					template.Must(template.New("").Parse(`
 					PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
 
 					SELECT series_id, title, release_date FROM series;
 				`)), struct {
-					TablePathPrefix string
-				}{
-					TablePathPrefix: prefix,
-				},
-			),
-		)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			_ = rows.Close()
-		}()
-		var (
-			id          *string
-			title       *string
-			releaseDate *time.Time
-		)
-		log.Println("> select of all known series:")
-		for rows.Next() {
-			if err = rows.Scan(&id, &title, &releaseDate); err != nil {
+						TablePathPrefix string
+					}{
+						TablePathPrefix: prefix,
+					},
+				),
+			)
+			if err != nil {
 				return err
 			}
-			log.Printf(
-				"> [%s] %s (%s)",
-				*id, *title, releaseDate.Format("2006-01-02"),
+			defer func() {
+				_ = rows.Close()
+			}()
+			var (
+				id          *string
+				title       *string
+				releaseDate *time.Time
 			)
-		}
-		return rows.Err()
-	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+			log.Println("> select of all known series:")
+			for rows.Next() {
+				if err = rows.Scan(&id, &title, &releaseDate); err != nil {
+					return err
+				}
+				log.Printf(
+					"> [%s] %s (%s)",
+					*id, *title, releaseDate.Format("2006-01-02"),
+				)
+			}
+			return rows.Err()
+		}, retry.WithDoRetryOptions(retry.WithIdempotent(true)),
+	)
 	if err != nil {
 		return fmt.Errorf("execute data query failed: %w", err)
 	}
@@ -107,9 +109,7 @@ func selectDefault(ctx context.Context, db *sql.DB, prefix string) (err error) {
 }
 
 func selectScan(ctx context.Context, db *sql.DB, prefix string) (err error) {
-	// scan query
-	err = retry.Do(
-		ydb.WithTxControl(ctx, table.StaleReadOnlyTxControl()), db,
+	err = retry.Do(ydb.WithTxControl(ctx, table.StaleReadOnlyTxControl()), db,
 		func(ctx context.Context, cc *sql.Conn) (err error) {
 			var (
 				id        string

@@ -45,7 +45,9 @@ func episodeData(seriesID, seasonID, episodeID string, title string, date time.T
 }
 
 func getData() (series []types.Value, seasons []types.Value, episodes []types.Value) {
-	for seriesID, fill := range map[string]func(seriesID string) (seriesData types.Value, seasons []types.Value, episodes []types.Value){
+	for seriesID, fill := range map[string]func(seriesID string) (
+		seriesData types.Value, seasons []types.Value, episodes []types.Value,
+	){
 		uuid.New().String(): getDataForITCrowd,
 		uuid.New().String(): getDataForSiliconValley,
 	} {
