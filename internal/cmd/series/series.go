@@ -58,6 +58,7 @@ func selectDefault(ctx context.Context, db *sql.DB, prefix string) (err error) {
 		if err = row.Scan(&ast, &plan); err != nil {
 			return err
 		}
+		log.Println(plan, ast)
 		return nil
 	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
 	if err != nil {
