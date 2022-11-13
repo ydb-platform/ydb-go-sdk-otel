@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/balancers"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -26,6 +25,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+
+	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 )
 
 const (
