@@ -111,7 +111,7 @@ func getDataForITCrowd(seriesID string) (series types.Value, seasons []types.Val
 			episodes = append(episodes, episodeData(seriesID, seasonID, uuid.New().String(), title, date))
 		}
 	}
-	return
+	return series, seasons, episodes
 }
 
 func getDataForSiliconValley(seriesID string) (series types.Value, seasons []types.Value, episodes []types.Value) {
@@ -190,7 +190,7 @@ func getDataForSiliconValley(seriesID string) (series types.Value, seasons []typ
 			episodes = append(episodes, episodeData(seriesID, seasonID, uuid.New().String(), title, date))
 		}
 	}
-	return
+	return series, seasons, episodes
 }
 
 const dateISO8601 = "2006-01-02"

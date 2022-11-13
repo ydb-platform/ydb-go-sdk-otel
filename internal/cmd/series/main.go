@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"path"
 	"sync"
