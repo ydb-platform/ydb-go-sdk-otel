@@ -1,15 +1,16 @@
-package ydb_otel
+package ydb
 
 import (
 	"context"
 	"net/url"
 	"sync/atomic"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
 )
 
 const (
@@ -37,6 +38,7 @@ func finish(s trace.Span, err error, fields ...attribute.KeyValue) {
 	s.End()
 }
 
+//nolint:unparam
 func intermediate(s trace.Span, err error, fields ...attribute.KeyValue) {
 	if err != nil {
 		logError(s, err, fields...)
@@ -58,7 +60,12 @@ func (s *counter) add(delta int64) {
 	)
 }
 
-func startSpanWithCounter(ctx *context.Context, operationName string, counterName string, fields ...attribute.KeyValue) (c *counter) {
+func startSpanWithCounter(
+	ctx *context.Context,
+	operationName string,
+	counterName string,
+	fields ...attribute.KeyValue,
+) (c *counter) {
 	fields = append(fields, attribute.String("ydb.driver.sensor", operationName+"_"+counterName))
 	return &counter{
 		span:    startSpan(ctx, operationName, fields...),
@@ -77,7 +84,12 @@ func startSpan(ctx *context.Context, operationName string, fields ...attribute.K
 	return s
 }
 
-func followSpan(related trace.SpanContext, ctx *context.Context, operationName string, fields ...attribute.KeyValue) (s trace.Span) {
+func followSpan(
+	related trace.SpanContext,
+	ctx *context.Context,
+	operationName string,
+	fields ...attribute.KeyValue,
+) (s trace.Span) {
 	fields = append(fields, attribute.String("ydb-go-sdk", version))
 	*ctx, s = otel.Tracer(tracerID).Start(
 		trace.ContextWithRemoteSpanContext(*ctx, related),

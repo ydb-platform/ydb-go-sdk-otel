@@ -5,27 +5,30 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path"
 	"sync"
 	"time"
 
-	ydbTracing "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	jaegerPropogator "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/jaeger"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+
+	ydbOtel "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
 )
 
 const (
 	tracerURL   = "http://localhost:14268/api/traces"
-	serviceName = "ydb-go-sdk"
-	prefix      = "ydb-go-sdk-opentracing/bench/database-sql"
+	serviceName = "ydb-go-sdk-otel"
+	prefix      = "ydb-go-sdk-otel/series"
 )
 
 func init() {
@@ -80,7 +83,7 @@ func main() {
 
 	nativeDriver, err := ydb.Open(ctx, os.Getenv("YDB_CONNECTION_STRING"),
 		ydb.WithDiscoveryInterval(5*time.Second),
-		ydbTracing.WithTraces(trace.DetailsAll),
+		ydbOtel.WithTraces(trace.DetailsAll),
 	)
 	if err != nil {
 		log.Fatalf("connect error: %v", err)

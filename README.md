@@ -1,10 +1,4 @@
-NOT WORKS!
-
-FIX ME!!!
-
-See https://github.com/ydb-platform/ydb-go-sdk-opentracing as previous tooling
-
-# ydb_otel
+# ydb_opentelemetry adapter
 
 Opentelemetry traces over ydb-go-sdk events 
 
@@ -13,8 +7,9 @@ Opentelemetry traces over ydb-go-sdk events
 import (
     "github.com/ydb-platform/ydb-go-sdk/v3"
     "github.com/ydb-platform/ydb-go-sdk/v3/trace"
-    ydbOpentracing "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
     jaegerConfig "github.com/uber/jaeger-client-go/config"
+	
+    ydbOtel "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
 )
 
 ...

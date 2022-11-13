@@ -1,12 +1,14 @@
-package ydb_otel
+package ydb
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+
+	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
 )
 
 // Driver makes Driver with publishing traces
@@ -74,7 +76,13 @@ func Driver(details trace.Details) (t trace.Driver) {
 				)
 			}
 		}
-		t.OnConnNewStream = func(info trace.DriverConnNewStreamStartInfo) func(trace.DriverConnNewStreamRecvInfo) func(trace.DriverConnNewStreamDoneInfo) {
+		t.OnConnNewStream = func(
+			info trace.DriverConnNewStreamStartInfo,
+		) func(
+			trace.DriverConnNewStreamRecvInfo,
+		) func(
+			trace.DriverConnNewStreamDoneInfo,
+		) {
 			start := startSpan(
 				info.Context,
 				"ydb_conn_new_stream",
@@ -188,7 +196,11 @@ func Driver(details trace.Details) (t trace.Driver) {
 				)
 			}
 		}
-		t.OnBalancerChooseEndpoint = func(info trace.DriverBalancerChooseEndpointStartInfo) func(trace.DriverBalancerChooseEndpointDoneInfo) {
+		t.OnBalancerChooseEndpoint = func(
+			info trace.DriverBalancerChooseEndpointStartInfo,
+		) func(
+			trace.DriverBalancerChooseEndpointDoneInfo,
+		) {
 			start := startSpan(
 				info.Context,
 				"ydb_balancer_get",
