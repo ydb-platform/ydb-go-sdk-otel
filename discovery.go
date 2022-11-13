@@ -1,9 +1,8 @@
 package ydb_otel
 
 import (
-	"go.opentelemetry.io/otel/attribute"
-
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func Discovery(details trace.Details) (t trace.Discovery) {
@@ -12,9 +11,9 @@ func Discovery(details trace.Details) (t trace.Discovery) {
 			start := startSpan(
 				info.Context,
 				"ydb_discovery",
+				attribute.String("address", info.Address),
+				attribute.String("database", info.Database),
 			)
-			start.SetAttributes(attribute.String("address", info.Address))
-			start.SetAttributes(attribute.String("database", info.Database))
 			return func(info trace.DiscoveryDiscoverDoneInfo) {
 				endpoints := make([]string, len(info.Endpoints))
 				for i, e := range info.Endpoints {
