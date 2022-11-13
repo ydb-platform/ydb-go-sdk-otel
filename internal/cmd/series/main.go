@@ -71,8 +71,8 @@ func main() {
 		// Do not make the application hang when it is shutdown.
 		ctx, cancel = context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
-		if err := tp.Shutdown(ctx); err != nil {
-			log.Fatal(err)
+		if err = tp.Shutdown(ctx); err != nil {
+			panic(err)
 		}
 	}(ctx)
 
@@ -86,13 +86,13 @@ func main() {
 		ydbOtel.WithTraces(trace.DetailsAll),
 	)
 	if err != nil {
-		log.Fatalf("connect error: %v", err)
+		panic(err)
 	}
 	defer func() { _ = nativeDriver.Close(ctx) }()
 
 	connector, err := ydb.Connector(nativeDriver)
 	if err != nil {
-		log.Fatalf("create connector failed: %v", err)
+		panic(err)
 	}
 
 	db := sql.OpenDB(connector)
@@ -100,24 +100,24 @@ func main() {
 
 	cc, err := ydb.Unwrap(db)
 	if err != nil {
-		log.Fatalf("unwrap failed: %v", err)
+		panic(err)
 	}
 
 	prefix := path.Join(cc.Name(), prefix)
 
 	err = sugar.RemoveRecursive(ctx, cc, prefix)
 	if err != nil {
-		log.Fatalf("remove recursive failed: %v", err)
+		panic(err)
 	}
 
 	err = prepareSchema(ctx, db, prefix)
 	if err != nil {
-		log.Fatalf("create tables error: %v", err)
+		panic(err)
 	}
 
 	err = fillTablesWithData(ctx, db, prefix)
 	if err != nil {
-		log.Fatalf("fill tables with data error: %v", err)
+		panic(err)
 	}
 
 	wg := sync.WaitGroup{}

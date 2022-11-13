@@ -75,7 +75,7 @@ func main() {
 		ctx, cancel = context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
 		if err = tp.Shutdown(ctx); err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 	}(ctx)
 
