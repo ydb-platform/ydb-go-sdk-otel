@@ -1,4 +1,4 @@
-module github.com/ydb-platform/ydb-go-sdk-opentelemetry
+module github.com/ydb-platform/ydb-go-sdk-otel
 
 go 1.18
 

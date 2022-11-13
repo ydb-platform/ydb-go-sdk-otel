@@ -22,7 +22,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 
-	ydbOtel "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
+	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 )
 
 const (

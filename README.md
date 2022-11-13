@@ -9,7 +9,7 @@ import (
     "github.com/ydb-platform/ydb-go-sdk/v3/trace"
     jaegerConfig "github.com/uber/jaeger-client-go/config"
 	
-    ydbOtel "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
+    ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 )
 
 ...
