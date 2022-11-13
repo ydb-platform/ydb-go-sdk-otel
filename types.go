@@ -81,6 +81,7 @@ func startSpan(ctx *context.Context, operationName string, fields ...attribute.K
 		operationName,
 		trace.WithAttributes(fields...),
 	)
+	*ctx = ydb.WithTraceID(*ctx, s.SpanContext().TraceID().String())
 	return s
 }
 

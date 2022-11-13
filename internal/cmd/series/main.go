@@ -69,7 +69,7 @@ func main() {
 		// Do not make the application hang when it is shutdown.
 		ctx, cancel = context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
-		if err = tp.Shutdown(ctx); err != nil {
+		if err := tp.Shutdown(ctx); err != nil {
 			panic(err)
 		}
 	}(ctx)
