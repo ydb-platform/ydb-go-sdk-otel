@@ -5,11 +5,12 @@ import (
 	"net/url"
 	"sync/atomic"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
 )
 
 const (
