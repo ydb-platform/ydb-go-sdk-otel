@@ -10,9 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	jaegerPropogator "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/jaeger"
@@ -21,6 +18,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 
 	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 const (
