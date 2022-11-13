@@ -1,15 +1,22 @@
-package ydb_otel
+package ydb
 
 import (
-	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 )
 
 // Table makes table.ClientTrace with solomon metrics publishing
 func Table(details trace.Details) (t trace.Table) {
 	if details&trace.TableEvents != 0 {
-		t.OnCreateSession = func(info trace.TableCreateSessionStartInfo) func(info trace.TableCreateSessionIntermediateInfo) func(trace.TableCreateSessionDoneInfo) {
+		t.OnCreateSession = func(
+			info trace.TableCreateSessionStartInfo,
+		) func(
+			info trace.TableCreateSessionIntermediateInfo,
+		) func(
+			trace.TableCreateSessionDoneInfo,
+		) {
 			start := startSpan(
 				info.Context,
 				"ydb_table_create_session",
@@ -24,7 +31,13 @@ func Table(details trace.Details) (t trace.Table) {
 				}
 			}
 		}
-		t.OnDo = func(info trace.TableDoStartInfo) func(info trace.TableDoIntermediateInfo) func(trace.TableDoDoneInfo) {
+		t.OnDo = func(
+			info trace.TableDoStartInfo,
+		) func(
+			info trace.TableDoIntermediateInfo,
+		) func(
+			trace.TableDoDoneInfo,
+		) {
 			start := startSpan(
 				info.Context,
 				"ydb_table_do",
@@ -40,7 +53,13 @@ func Table(details trace.Details) (t trace.Table) {
 				}
 			}
 		}
-		t.OnDoTx = func(info trace.TableDoTxStartInfo) func(info trace.TableDoTxIntermediateInfo) func(trace.TableDoTxDoneInfo) {
+		t.OnDoTx = func(
+			info trace.TableDoTxStartInfo,
+		) func(
+			info trace.TableDoTxIntermediateInfo,
+		) func(
+			trace.TableDoTxDoneInfo,
+		) {
 			start := startSpan(
 				info.Context,
 				"ydb_table_do_tx",
@@ -57,6 +76,7 @@ func Table(details trace.Details) (t trace.Table) {
 			}
 		}
 	}
+	//nolint:nestif
 	if details&trace.TableSessionEvents != 0 {
 		if details&trace.TableSessionLifeCycleEvents != 0 {
 			t.OnSessionNew = func(info trace.TableSessionNewStartInfo) func(trace.TableSessionNewDoneInfo) {
@@ -203,7 +223,11 @@ func Table(details trace.Details) (t trace.Table) {
 			}
 		}
 		if details&trace.TableSessionTransactionEvents != 0 {
-			t.OnSessionTransactionBegin = func(info trace.TableSessionTransactionBeginStartInfo) func(trace.TableSessionTransactionBeginDoneInfo) {
+			t.OnSessionTransactionBegin = func(
+				info trace.TableSessionTransactionBeginStartInfo,
+			) func(
+				trace.TableSessionTransactionBeginDoneInfo,
+			) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_tx_begin",
@@ -218,7 +242,11 @@ func Table(details trace.Details) (t trace.Table) {
 					)
 				}
 			}
-			t.OnSessionTransactionCommit = func(info trace.TableSessionTransactionCommitStartInfo) func(trace.TableSessionTransactionCommitDoneInfo) {
+			t.OnSessionTransactionCommit = func(
+				info trace.TableSessionTransactionCommitStartInfo,
+			) func(
+				trace.TableSessionTransactionCommitDoneInfo,
+			) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_tx_commit",
@@ -230,7 +258,11 @@ func Table(details trace.Details) (t trace.Table) {
 					finish(start, info.Error)
 				}
 			}
-			t.OnSessionTransactionRollback = func(info trace.TableSessionTransactionRollbackStartInfo) func(trace.TableSessionTransactionRollbackDoneInfo) {
+			t.OnSessionTransactionRollback = func(
+				info trace.TableSessionTransactionRollbackStartInfo,
+			) func(
+				trace.TableSessionTransactionRollbackDoneInfo,
+			) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_tx_rollback",
@@ -242,7 +274,11 @@ func Table(details trace.Details) (t trace.Table) {
 					finish(start, info.Error)
 				}
 			}
-			t.OnSessionTransactionExecute = func(info trace.TableTransactionExecuteStartInfo) func(trace.TableTransactionExecuteDoneInfo) {
+			t.OnSessionTransactionExecute = func(
+				info trace.TableTransactionExecuteStartInfo,
+			) func(
+				trace.TableTransactionExecuteDoneInfo,
+			) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_tx_execute",
@@ -256,7 +292,11 @@ func Table(details trace.Details) (t trace.Table) {
 					finish(start, info.Error)
 				}
 			}
-			t.OnSessionTransactionExecuteStatement = func(info trace.TableTransactionExecuteStatementStartInfo) func(info trace.TableTransactionExecuteStatementDoneInfo) {
+			t.OnSessionTransactionExecuteStatement = func(
+				info trace.TableTransactionExecuteStatementStartInfo,
+			) func(
+				info trace.TableTransactionExecuteStatementDoneInfo,
+			) {
 				start := startSpan(
 					info.Context,
 					"ydb_table_session_tx_execute_statement",
@@ -295,9 +335,6 @@ func Table(details trace.Details) (t trace.Table) {
 					finish(start, info.Error)
 				}
 			}
-		}
-		if details&trace.TablePoolSessionLifeCycleEvents != 0 {
-			// nop
 		}
 		if details&trace.TablePoolAPIEvents != 0 {
 			t.OnPoolPut = func(info trace.TablePoolPutStartInfo) func(trace.TablePoolPutDoneInfo) {

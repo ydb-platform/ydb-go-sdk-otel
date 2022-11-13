@@ -1,10 +1,11 @@
-package ydb_otel
+package ydb
 
 import (
-	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
+
+	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 )
 
 // DatabaseSQL makes trace.DatabaseSQL with logging events from details
@@ -33,7 +34,6 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 			}
 		}
 	}
-	//nolint:nestif
 	if details&trace.DatabaseSQLConnEvents != 0 {
 		//nolint:govet
 		prefix := prefix + "_conn"
@@ -93,7 +93,6 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 			}
 		}
 	}
-	//nolint:nestif
 	if details&trace.DatabaseSQLConnEvents != 0 {
 		//nolint:govet
 		prefix := prefix + "_tx"
@@ -169,7 +168,6 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 			}
 		}
 	}
-	//nolint:nestif
 	if details&trace.DatabaseSQLStmtEvents != 0 {
 		//nolint:govet
 		prefix := prefix + "_stmt"

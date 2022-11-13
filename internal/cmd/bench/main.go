@@ -6,14 +6,12 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"path"
 	"strconv"
 	"sync"
 	"time"
 
-	ydbOtel "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/balancers"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -27,6 +25,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+
+	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 )
 
 const (
@@ -74,9 +74,7 @@ func main() {
 		// Do not make the application hang when it is shutdown.
 		ctx, cancel = context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
-		if err := tp.Shutdown(ctx); err != nil {
-			log.Fatal(err)
-		}
+		_ = tp.Shutdown(ctx)
 	}(ctx)
 
 	tr := tp.Tracer(serviceName)
@@ -126,11 +124,13 @@ func main() {
 		go func() {
 			defer wg.Done()
 			for {
+				//nolint:gosec
 				time.Sleep(time.Duration(rand.Int63n(int64(time.Second))))
 				_, _ = scanSelect(
 					ctx,
 					db.Table(),
 					db.Name(),
+					//nolint:gosec
 					rand.Int63n(25000),
 				)
 			}
@@ -204,7 +204,7 @@ func upsertData(ctx context.Context, c table.Client, prefix, tableName string, c
 }
 
 func scanSelect(ctx context.Context, c table.Client, prefix string, limit int64) (count uint64, err error) {
-	var query = fmt.Sprintf(`
+	query := fmt.Sprintf(`
 		PRAGMA TablePathPrefix("%s");
 		SELECT
 			series_id,
@@ -252,5 +252,5 @@ func scanSelect(ctx context.Context, c table.Client, prefix string, limit int64)
 		},
 		table.WithIdempotent(),
 	)
-	return
+	return count, err
 }

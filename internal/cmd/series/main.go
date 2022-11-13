@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	ydbTracing "github.com/ydb-platform/ydb-go-sdk-opentelemetry"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
@@ -20,12 +19,14 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+
+	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 )
 
 const (
 	tracerURL   = "http://localhost:14268/api/traces"
-	serviceName = "ydb-go-sdk"
-	prefix      = "ydb-go-sdk-opentracing/bench/database-sql"
+	serviceName = "ydb-go-sdk-otel"
+	prefix      = "ydb-go-sdk-otel/series"
 )
 
 func init() {
@@ -68,9 +69,7 @@ func main() {
 		// Do not make the application hang when it is shutdown.
 		ctx, cancel = context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
-		if err := tp.Shutdown(ctx); err != nil {
-			log.Fatal(err)
-		}
+		_ = tp.Shutdown(ctx)
 	}(ctx)
 
 	tr := tp.Tracer(serviceName)
@@ -80,16 +79,16 @@ func main() {
 
 	nativeDriver, err := ydb.Open(ctx, os.Getenv("YDB_CONNECTION_STRING"),
 		ydb.WithDiscoveryInterval(5*time.Second),
-		ydbTracing.WithTraces(trace.DetailsAll),
+		ydbOtel.WithTraces(trace.DetailsAll),
 	)
 	if err != nil {
-		log.Fatalf("connect error: %v", err)
+		panic(err)
 	}
 	defer func() { _ = nativeDriver.Close(ctx) }()
 
 	connector, err := ydb.Connector(nativeDriver)
 	if err != nil {
-		log.Fatalf("create connector failed: %v", err)
+		panic(err)
 	}
 
 	db := sql.OpenDB(connector)
@@ -97,24 +96,24 @@ func main() {
 
 	cc, err := ydb.Unwrap(db)
 	if err != nil {
-		log.Fatalf("unwrap failed: %v", err)
+		panic(err)
 	}
 
 	prefix := path.Join(cc.Name(), prefix)
 
 	err = sugar.RemoveRecursive(ctx, cc, prefix)
 	if err != nil {
-		log.Fatalf("remove recursive failed: %v", err)
+		panic(err)
 	}
 
 	err = prepareSchema(ctx, db, prefix)
 	if err != nil {
-		log.Fatalf("create tables error: %v", err)
+		panic(err)
 	}
 
 	err = fillTablesWithData(ctx, db, prefix)
 	if err != nil {
-		log.Fatalf("fill tables with data error: %v", err)
+		panic(err)
 	}
 
 	wg := sync.WaitGroup{}

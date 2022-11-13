@@ -1,9 +1,10 @@
-package ydb_otel
+package ydb
 
 import (
-	"github.com/ydb-platform/ydb-go-sdk-opentelemetry/internal/safe"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 )
 
 func Scripting(details trace.Details) (t trace.Scripting) {

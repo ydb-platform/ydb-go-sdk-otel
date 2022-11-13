@@ -1,9 +1,10 @@
-module github.com/ydb-platform/ydb-go-sdk-opentelemetry
+module github.com/ydb-platform/ydb-go-sdk-otel
 
 go 1.18
 
 require (
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.38.2
+	github.com/google/uuid v1.3.0
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.39.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.10.0
 	go.opentelemetry.io/otel v1.10.0
 	go.opentelemetry.io/otel/exporters/jaeger v1.10.0

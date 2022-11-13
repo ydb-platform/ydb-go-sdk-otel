@@ -1,8 +1,9 @@
-package ydb_otel
+package ydb
 
 import (
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 func Retry(details trace.Details) (t trace.Retry) {
