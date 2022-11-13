@@ -1,10 +1,10 @@
 package ydb
 
 import (
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 // Table makes table.ClientTrace with solomon metrics publishing

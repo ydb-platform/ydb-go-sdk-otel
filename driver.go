@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 )
 
 // Driver makes Driver with publishing traces
