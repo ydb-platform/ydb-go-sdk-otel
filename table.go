@@ -3,12 +3,13 @@ package ydb
 import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 )
 
 // Table makes table.ClientTrace with solomon metrics publishing
-func Table(details trace.Details) (t trace.Table) {
+func Table(tracer otelTrace.Tracer, details trace.Details) (t trace.Table) {
 	if details&trace.TableEvents != 0 {
 		t.OnCreateSession = func(
 			info trace.TableCreateSessionStartInfo,
@@ -18,6 +19,7 @@ func Table(details trace.Details) (t trace.Table) {
 			trace.TableCreateSessionDoneInfo,
 		) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				"ydb_table_create_session",
 			)
@@ -39,6 +41,7 @@ func Table(details trace.Details) (t trace.Table) {
 			trace.TableDoDoneInfo,
 		) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				"ydb_table_do",
 				attribute.Bool("idempotent", info.Idempotent),
@@ -61,6 +64,7 @@ func Table(details trace.Details) (t trace.Table) {
 			trace.TableDoTxDoneInfo,
 		) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				"ydb_table_do_tx",
 				attribute.Bool("idempotent", info.Idempotent),
@@ -81,6 +85,7 @@ func Table(details trace.Details) (t trace.Table) {
 		if details&trace.TableSessionLifeCycleEvents != 0 {
 			t.OnSessionNew = func(info trace.TableSessionNewStartInfo) func(trace.TableSessionNewDoneInfo) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_session_new",
 				)
@@ -96,6 +101,7 @@ func Table(details trace.Details) (t trace.Table) {
 			}
 			t.OnSessionDelete = func(info trace.TableSessionDeleteStartInfo) func(trace.TableSessionDeleteDoneInfo) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_session_delete",
 					attribute.String("node_id", nodeID(safe.ID(info.Session))),
@@ -107,6 +113,7 @@ func Table(details trace.Details) (t trace.Table) {
 			}
 			t.OnSessionKeepAlive = func(info trace.TableKeepAliveStartInfo) func(trace.TableKeepAliveDoneInfo) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_session_keep_alive",
 					attribute.String("node_id", nodeID(safe.ID(info.Session))),
@@ -125,6 +132,7 @@ func Table(details trace.Details) (t trace.Table) {
 					trace.TablePrepareDataQueryDoneInfo,
 				) {
 					start := startSpan(
+						tracer,
 						info.Context,
 						"ydb_table_session_query_prepare",
 						attribute.String("query", info.Query),
@@ -145,6 +153,7 @@ func Table(details trace.Details) (t trace.Table) {
 					trace.TableExecuteDataQueryDoneInfo,
 				) {
 					start := startSpan(
+						tracer,
 						info.Context,
 						"ydb_table_session_query_execute",
 						attribute.String("query", safe.Stringer(info.Query)),
@@ -178,6 +187,7 @@ func Table(details trace.Details) (t trace.Table) {
 					trace.TableSessionQueryStreamExecuteDoneInfo,
 				) {
 					start := startSpan(
+						tracer,
 						info.Context,
 						"ydb_table_session_query_stream_execute",
 						attribute.String("query", safe.Stringer(info.Query)),
@@ -204,6 +214,7 @@ func Table(details trace.Details) (t trace.Table) {
 					trace.TableSessionQueryStreamReadDoneInfo,
 				) {
 					start := startSpan(
+						tracer,
 						info.Context,
 						"ydb_table_session_query_stream_read",
 						attribute.String("node_id", nodeID(safe.ID(info.Session))),
@@ -229,6 +240,7 @@ func Table(details trace.Details) (t trace.Table) {
 				trace.TableSessionTransactionBeginDoneInfo,
 			) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_session_tx_begin",
 					attribute.String("node_id", nodeID(safe.ID(info.Session))),
@@ -248,6 +260,7 @@ func Table(details trace.Details) (t trace.Table) {
 				trace.TableSessionTransactionCommitDoneInfo,
 			) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_session_tx_commit",
 					attribute.String("node_id", nodeID(safe.ID(info.Session))),
@@ -264,6 +277,7 @@ func Table(details trace.Details) (t trace.Table) {
 				trace.TableSessionTransactionRollbackDoneInfo,
 			) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_session_tx_rollback",
 					attribute.String("node_id", nodeID(safe.ID(info.Session))),
@@ -280,6 +294,7 @@ func Table(details trace.Details) (t trace.Table) {
 				trace.TableTransactionExecuteDoneInfo,
 			) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_session_tx_execute",
 					attribute.String("query", safe.Stringer(info.Query)),
@@ -298,6 +313,7 @@ func Table(details trace.Details) (t trace.Table) {
 				info trace.TableTransactionExecuteStatementDoneInfo,
 			) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_session_tx_execute_statement",
 					attribute.String("params", safe.Stringer(info.Parameters)),
@@ -315,6 +331,7 @@ func Table(details trace.Details) (t trace.Table) {
 		if details&trace.TablePoolLifeCycleEvents != 0 {
 			t.OnInit = func(info trace.TableInitStartInfo) func(trace.TableInitDoneInfo) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_pool_init",
 				)
@@ -328,6 +345,7 @@ func Table(details trace.Details) (t trace.Table) {
 			}
 			t.OnClose = func(info trace.TableCloseStartInfo) func(trace.TableCloseDoneInfo) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_pool_close",
 				)
@@ -339,6 +357,7 @@ func Table(details trace.Details) (t trace.Table) {
 		if details&trace.TablePoolAPIEvents != 0 {
 			t.OnPoolPut = func(info trace.TablePoolPutStartInfo) func(trace.TablePoolPutDoneInfo) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_pool_put",
 					attribute.String("node_id", nodeID(safe.ID(info.Session))),
@@ -350,6 +369,7 @@ func Table(details trace.Details) (t trace.Table) {
 			}
 			t.OnPoolGet = func(info trace.TablePoolGetStartInfo) func(trace.TablePoolGetDoneInfo) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_pool_get",
 				)
@@ -366,6 +386,7 @@ func Table(details trace.Details) (t trace.Table) {
 			}
 			t.OnPoolWait = func(info trace.TablePoolWaitStartInfo) func(trace.TablePoolWaitDoneInfo) {
 				start := startSpan(
+					tracer,
 					info.Context,
 					"ydb_table_pool_wait",
 				)

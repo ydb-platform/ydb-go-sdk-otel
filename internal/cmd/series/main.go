@@ -72,14 +72,14 @@ func main() {
 		_ = tp.Shutdown(ctx)
 	}(ctx)
 
-	tr := tp.Tracer(serviceName)
+	tracer := tp.Tracer(serviceName)
 
-	ctx, span := tr.Start(ctx, "main")
+	ctx, span := tracer.Start(ctx, "main")
 	defer span.End()
 
 	nativeDriver, err := ydb.Open(ctx, os.Getenv("YDB_CONNECTION_STRING"),
 		ydb.WithDiscoveryInterval(5*time.Second),
-		ydbOtel.WithTraces(trace.DetailsAll),
+		ydbOtel.WithTraces(tracer, trace.DetailsAll),
 	)
 	if err != nil {
 		panic(err)

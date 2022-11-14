@@ -9,7 +9,7 @@ import (
 )
 
 // DatabaseSQL makes trace.DatabaseSQL with logging events from details
-func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
+func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.DatabaseSQL) {
 	if details&trace.DatabaseSQLEvents == 0 {
 		return
 	}
@@ -23,6 +23,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 			trace.DatabaseSQLConnectorConnectDoneInfo,
 		) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				prefix+"_connect",
 			)
@@ -39,6 +40,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		prefix := prefix + "_conn"
 		t.OnConnPing = func(info trace.DatabaseSQLConnPingStartInfo) func(trace.DatabaseSQLConnPingDoneInfo) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				prefix+"_ping",
 			)
@@ -51,6 +53,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		}
 		t.OnConnPrepare = func(info trace.DatabaseSQLConnPrepareStartInfo) func(trace.DatabaseSQLConnPrepareDoneInfo) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				prefix+"_prepare",
 				attribute.String("query", info.Query),
@@ -64,6 +67,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		}
 		t.OnConnExec = func(info trace.DatabaseSQLConnExecStartInfo) func(trace.DatabaseSQLConnExecDoneInfo) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				prefix+"_exec",
 				attribute.String("query", info.Query),
@@ -79,6 +83,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		}
 		t.OnConnQuery = func(info trace.DatabaseSQLConnQueryStartInfo) func(trace.DatabaseSQLConnQueryDoneInfo) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				prefix+"_query",
 				attribute.String("query", info.Query),
@@ -98,6 +103,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		prefix := prefix + "_tx"
 		t.OnConnBegin = func(info trace.DatabaseSQLConnBeginStartInfo) func(trace.DatabaseSQLConnBeginDoneInfo) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				prefix+"_begin",
 			)
@@ -111,6 +117,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		}
 		t.OnTxRollback = func(info trace.DatabaseSQLTxRollbackStartInfo) func(trace.DatabaseSQLTxRollbackDoneInfo) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				prefix+"_rollback",
 				attribute.String("transaction_id", safe.ID(info.Tx)),
@@ -124,6 +131,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		}
 		t.OnTxCommit = func(info trace.DatabaseSQLTxCommitStartInfo) func(trace.DatabaseSQLTxCommitDoneInfo) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				prefix+"_commit",
 				attribute.String("transaction_id", safe.ID(info.Tx)),
@@ -137,6 +145,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		}
 		t.OnTxExec = func(info trace.DatabaseSQLTxExecStartInfo) func(trace.DatabaseSQLTxExecDoneInfo) {
 			start := followSpan(
+				tracer,
 				otelTrace.SpanFromContext(info.TxContext).SpanContext(),
 				info.Context,
 				prefix+"_exec",
@@ -153,6 +162,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		}
 		t.OnTxQuery = func(info trace.DatabaseSQLTxQueryStartInfo) func(trace.DatabaseSQLTxQueryDoneInfo) {
 			start := followSpan(
+				tracer,
 				otelTrace.SpanFromContext(info.TxContext).SpanContext(),
 				info.Context,
 				prefix+"_query",
@@ -173,6 +183,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		prefix := prefix + "_stmt"
 		t.OnStmtExec = func(info trace.DatabaseSQLStmtExecStartInfo) func(trace.DatabaseSQLStmtExecDoneInfo) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				prefix+"_exec",
 				attribute.String("query", info.Query),
@@ -186,6 +197,7 @@ func DatabaseSQL(details trace.Details) (t trace.DatabaseSQL) {
 		}
 		t.OnStmtQuery = func(info trace.DatabaseSQLStmtQueryStartInfo) func(trace.DatabaseSQLStmtQueryDoneInfo) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				prefix+"_query",
 				attribute.String("query", info.Query),
