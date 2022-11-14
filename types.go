@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"sync/atomic"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -61,6 +60,7 @@ func (s *counter) add(delta int64) {
 }
 
 func startSpanWithCounter(
+	tracer trace.Tracer,
 	ctx *context.Context,
 	operationName string,
 	counterName string,
@@ -68,15 +68,20 @@ func startSpanWithCounter(
 ) (c *counter) {
 	fields = append(fields, attribute.String("ydb.driver.sensor", operationName+"_"+counterName))
 	return &counter{
-		span:    startSpan(ctx, operationName, fields...),
+		span:    startSpan(tracer, ctx, operationName, fields...),
 		counter: 0,
 		name:    counterName,
 	}
 }
 
-func startSpan(ctx *context.Context, operationName string, fields ...attribute.KeyValue) (s trace.Span) {
+func startSpan(
+	tracer trace.Tracer,
+	ctx *context.Context,
+	operationName string,
+	fields ...attribute.KeyValue,
+) (s trace.Span) {
 	fields = append(fields, attribute.String("ydb-go-sdk", version))
-	*ctx, s = otel.Tracer(tracerID).Start(
+	*ctx, s = tracer.Start(
 		*ctx,
 		operationName,
 		trace.WithAttributes(fields...),
@@ -86,13 +91,14 @@ func startSpan(ctx *context.Context, operationName string, fields ...attribute.K
 }
 
 func followSpan(
+	tracer trace.Tracer,
 	related trace.SpanContext,
 	ctx *context.Context,
 	operationName string,
 	fields ...attribute.KeyValue,
 ) (s trace.Span) {
 	fields = append(fields, attribute.String("ydb-go-sdk", version))
-	*ctx, s = otel.Tracer(tracerID).Start(
+	*ctx, s = tracer.Start(
 		trace.ContextWithRemoteSpanContext(*ctx, related),
 		operationName,
 		trace.WithAttributes(fields...),

@@ -2,14 +2,16 @@ package ydb
 
 import (
 	"go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
-func Discovery(details trace.Details) (t trace.Discovery) {
+func Discovery(tracer otelTrace.Tracer, details trace.Details) (t trace.Discovery) {
 	if details&trace.DiscoveryEvents != 0 {
 		t.OnDiscover = func(info trace.DiscoveryDiscoverStartInfo) func(discovery trace.DiscoveryDiscoverDoneInfo) {
 			start := startSpan(
+				tracer,
 				info.Context,
 				"ydb_discovery",
 				attribute.String("address", info.Address),

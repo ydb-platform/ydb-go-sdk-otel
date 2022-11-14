@@ -77,9 +77,9 @@ func main() {
 		_ = tp.Shutdown(ctx)
 	}(ctx)
 
-	tr := tp.Tracer(serviceName)
+	tracer := tp.Tracer(serviceName)
 
-	ctx, span := tr.Start(ctx, "main")
+	ctx, span := tracer.Start(ctx, "main")
 	defer span.End()
 
 	creds := ydb.WithAnonymousCredentials()
@@ -95,7 +95,7 @@ func main() {
 		creds,
 		ydb.WithSessionPoolSizeLimit(300),
 		ydb.WithSessionPoolIdleThreshold(time.Second*5),
-		ydbOtel.WithTraces(trace.DetailsAll),
+		ydbOtel.WithTraces(tracer, trace.DetailsAll),
 	)
 	if err != nil {
 		panic(err)
