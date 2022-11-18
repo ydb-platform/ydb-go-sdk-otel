@@ -1,6 +1,8 @@
 package ydb
 
 import (
+	"fmt"
+
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
@@ -46,6 +48,9 @@ func Table(tracer otelTrace.Tracer, details trace.Details) (t trace.Table) {
 				"ydb_table_do",
 				attribute.Bool("idempotent", info.Idempotent),
 			)
+			if info.NestedCall {
+				start.RecordError(fmt.Errorf("nested call"))
+			}
 			return func(info trace.TableDoIntermediateInfo) func(trace.TableDoDoneInfo) {
 				intermediate(start, info.Error)
 				return func(info trace.TableDoDoneInfo) {
@@ -69,6 +74,9 @@ func Table(tracer otelTrace.Tracer, details trace.Details) (t trace.Table) {
 				"ydb_table_do_tx",
 				attribute.Bool("idempotent", info.Idempotent),
 			)
+			if info.NestedCall {
+				start.RecordError(fmt.Errorf("nested call"))
+			}
 			return func(info trace.TableDoTxIntermediateInfo) func(trace.TableDoTxDoneInfo) {
 				intermediate(start, info.Error)
 				return func(info trace.TableDoTxDoneInfo) {
