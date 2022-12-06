@@ -2,6 +2,7 @@ package ydb
 
 import (
 	"fmt"
+	"go.opentelemetry.io/otel"
 
 	"go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
@@ -10,6 +11,9 @@ import (
 )
 
 func Retry(tracer otelTrace.Tracer, details trace.Details) (t trace.Retry) {
+	if tracer == nil {
+		tracer = otel.Tracer(tracerID)
+	}
 	if details&trace.RetryEvents != 0 {
 		t.OnRetry = func(info trace.RetryLoopStartInfo) func(trace.RetryLoopIntermediateInfo) func(trace.RetryLoopDoneInfo) {
 			start := startSpan(

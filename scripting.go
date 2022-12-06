@@ -1,14 +1,19 @@
 package ydb
 
 import (
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 
 	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 )
 
 func Scripting(tracer otelTrace.Tracer, details trace.Details) (t trace.Scripting) {
+	if tracer == nil {
+		tracer = otel.Tracer(tracerID)
+	}
 	if details&trace.ScriptingEvents != 0 {
 		t.OnExecute = func(info trace.ScriptingExecuteStartInfo) func(trace.ScriptingExecuteDoneInfo) {
 			start := startSpan(

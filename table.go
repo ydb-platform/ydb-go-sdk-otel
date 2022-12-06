@@ -2,16 +2,21 @@ package ydb
 
 import (
 	"fmt"
+	"go.opentelemetry.io/otel"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 
 	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 )
 
 // Table makes table.ClientTrace with solomon metrics publishing
 func Table(tracer otelTrace.Tracer, details trace.Details) (t trace.Table) {
+	if tracer == nil {
+		tracer = otel.Tracer(tracerID)
+	}
 	if details&trace.TableEvents != 0 {
 		t.OnCreateSession = func(
 			info trace.TableCreateSessionStartInfo,

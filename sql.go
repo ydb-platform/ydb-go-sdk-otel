@@ -1,15 +1,20 @@
 package ydb
 
 import (
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 
 	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 )
 
 // DatabaseSQL makes trace.DatabaseSQL with logging events from details
 func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.DatabaseSQL) {
+	if tracer == nil {
+		tracer = otel.Tracer(tracerID)
+	}
 	if details&trace.DatabaseSQLEvents == 0 {
 		return
 	}
