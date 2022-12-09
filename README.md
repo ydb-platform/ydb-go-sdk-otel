@@ -33,8 +33,9 @@ import (
     db, err := ydb.Open(
         ctx,
         os.Getenv("YDB_CONNECTION_STRING"),
-        ydbOpentracing.WithTraces(
-            ydbOpentracing.WithDetails(trace.DetailsAll),
+        ydbOtel.WithTraces(
+            tracer,
+            ydbOtel.WithDetails(trace.DetailsAll),
         ),
     )
 
