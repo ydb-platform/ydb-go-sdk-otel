@@ -169,10 +169,11 @@ func Table(tracer otelTrace.Tracer, details trace.Details) (t trace.Table) {
 						tracer,
 						info.Context,
 						"ydb_table_session_query_execute",
-						attribute.String("query", safe.Stringer(info.Query)),
-						attribute.String("params", safe.Stringer(info.Parameters)),
 						attribute.String("node_id", nodeID(safe.ID(info.Session))),
 						attribute.String("session_id", safe.ID(info.Session)),
+						attribute.String("query", safe.Stringer(info.Query)),
+						attribute.String("params", safe.Stringer(info.Parameters)),
+						attribute.Bool("keep_in_cache", info.KeepInCache),
 					)
 					return func(info trace.TableExecuteDataQueryDoneInfo) {
 						if info.Error == nil {
@@ -310,11 +311,11 @@ func Table(tracer otelTrace.Tracer, details trace.Details) (t trace.Table) {
 					tracer,
 					info.Context,
 					"ydb_table_session_tx_execute",
-					attribute.String("query", safe.Stringer(info.Query)),
-					attribute.String("params", safe.Stringer(info.Parameters)),
 					attribute.String("node_id", nodeID(safe.ID(info.Session))),
 					attribute.String("session_id", safe.ID(info.Session)),
 					attribute.String("transaction_id", safe.ID(info.Tx)),
+					attribute.String("query", safe.Stringer(info.Query)),
+					attribute.String("params", safe.Stringer(info.Parameters)),
 				)
 				return func(info trace.TableTransactionExecuteDoneInfo) {
 					finish(start, info.Error)
@@ -329,10 +330,11 @@ func Table(tracer otelTrace.Tracer, details trace.Details) (t trace.Table) {
 					tracer,
 					info.Context,
 					"ydb_table_session_tx_execute_statement",
-					attribute.String("params", safe.Stringer(info.Parameters)),
 					attribute.String("node_id", nodeID(safe.ID(info.Session))),
 					attribute.String("session_id", safe.ID(info.Session)),
 					attribute.String("transaction_id", safe.ID(info.Tx)),
+					attribute.String("query", safe.Stringer(info.StatementQuery)),
+					attribute.String("params", safe.Stringer(info.Parameters)),
 				)
 				return func(info trace.TableTransactionExecuteStatementDoneInfo) {
 					finish(start, info.Error)
