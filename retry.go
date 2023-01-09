@@ -10,12 +10,12 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
-func Retry(tracer otelTrace.Tracer, details trace.Details) (t trace.Retry) {
+func Retry(tracer otelTrace.Tracer, d Detailer) (t trace.Retry) {
 	if tracer == nil {
 		tracer = otel.Tracer(tracerID)
 	}
-	if details&trace.RetryEvents != 0 {
-		t.OnRetry = func(info trace.RetryLoopStartInfo) func(trace.RetryLoopIntermediateInfo) func(trace.RetryLoopDoneInfo) {
+	t.OnRetry = func(info trace.RetryLoopStartInfo) func(trace.RetryLoopIntermediateInfo) func(trace.RetryLoopDoneInfo) {
+		if d.Details()&trace.RetryEvents != 0 {
 			start := startSpan(
 				tracer,
 				info.Context,
@@ -35,6 +35,7 @@ func Retry(tracer otelTrace.Tracer, details trace.Details) (t trace.Retry) {
 				}
 			}
 		}
+		return nil
 	}
 	return t
 }

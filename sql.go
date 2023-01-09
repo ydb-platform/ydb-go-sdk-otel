@@ -1,7 +1,6 @@
 package ydb
 
 import (
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
 
@@ -11,26 +10,18 @@ import (
 )
 
 // DatabaseSQL makes trace.DatabaseSQL with logging events from details
-func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.DatabaseSQL) {
-	if tracer == nil {
-		tracer = otel.Tracer(tracerID)
-	}
-	if details&trace.DatabaseSQLEvents == 0 {
-		return
-	}
+func DatabaseSQL(cfg *config) (t trace.DatabaseSQL) {
 	prefix := "ydb_database_sql"
-	if details&trace.DatabaseSQLConnectorEvents != 0 {
-		//nolint:govet
-		prefix := prefix + "_connector"
-		t.OnConnectorConnect = func(
-			info trace.DatabaseSQLConnectorConnectStartInfo,
-		) func(
-			trace.DatabaseSQLConnectorConnectDoneInfo,
-		) {
+	t.OnConnectorConnect = func(
+		info trace.DatabaseSQLConnectorConnectStartInfo,
+	) func(
+		trace.DatabaseSQLConnectorConnectDoneInfo,
+	) {
+		if cfg.detailer.Details()&trace.DatabaseSQLConnectorEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
-				prefix+"_connect",
+				prefix+"_connector_connect",
 			)
 			return func(info trace.DatabaseSQLConnectorConnectDoneInfo) {
 				finish(
@@ -39,15 +30,14 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
+		return nil
 	}
-	if details&trace.DatabaseSQLConnEvents != 0 {
-		//nolint:govet
-		prefix := prefix + "_conn"
-		t.OnConnPing = func(info trace.DatabaseSQLConnPingStartInfo) func(trace.DatabaseSQLConnPingDoneInfo) {
+	t.OnConnPing = func(info trace.DatabaseSQLConnPingStartInfo) func(trace.DatabaseSQLConnPingDoneInfo) {
+		if cfg.detailer.Details()&trace.DatabaseSQLConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
-				prefix+"_ping",
+				prefix+"_conn_ping",
 			)
 			return func(info trace.DatabaseSQLConnPingDoneInfo) {
 				finish(
@@ -56,11 +46,14 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
-		t.OnConnPrepare = func(info trace.DatabaseSQLConnPrepareStartInfo) func(trace.DatabaseSQLConnPrepareDoneInfo) {
+		return nil
+	}
+	t.OnConnPrepare = func(info trace.DatabaseSQLConnPrepareStartInfo) func(trace.DatabaseSQLConnPrepareDoneInfo) {
+		if cfg.detailer.Details()&trace.DatabaseSQLConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
-				prefix+"_prepare",
+				prefix+"_conn_prepare",
 				attribute.String("query", info.Query),
 			)
 			return func(info trace.DatabaseSQLConnPrepareDoneInfo) {
@@ -70,11 +63,14 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
-		t.OnConnExec = func(info trace.DatabaseSQLConnExecStartInfo) func(trace.DatabaseSQLConnExecDoneInfo) {
+		return nil
+	}
+	t.OnConnExec = func(info trace.DatabaseSQLConnExecStartInfo) func(trace.DatabaseSQLConnExecDoneInfo) {
+		if cfg.detailer.Details()&trace.DatabaseSQLConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
-				prefix+"_exec",
+				prefix+"_conn_exec",
 				attribute.String("query", info.Query),
 				attribute.String("query_mode", info.Mode),
 				attribute.Bool("idempotent", info.Idempotent),
@@ -86,11 +82,14 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
-		t.OnConnQuery = func(info trace.DatabaseSQLConnQueryStartInfo) func(trace.DatabaseSQLConnQueryDoneInfo) {
+		return nil
+	}
+	t.OnConnQuery = func(info trace.DatabaseSQLConnQueryStartInfo) func(trace.DatabaseSQLConnQueryDoneInfo) {
+		if cfg.detailer.Details()&trace.DatabaseSQLConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
-				prefix+"_query",
+				prefix+"_conn_query",
 				attribute.String("query", info.Query),
 				attribute.String("query_mode", info.Mode),
 				attribute.Bool("idempotent", info.Idempotent),
@@ -102,15 +101,14 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
+		return nil
 	}
-	if details&trace.DatabaseSQLConnEvents != 0 {
-		//nolint:govet
-		prefix := prefix + "_tx"
-		t.OnConnBegin = func(info trace.DatabaseSQLConnBeginStartInfo) func(trace.DatabaseSQLConnBeginDoneInfo) {
+	t.OnConnBegin = func(info trace.DatabaseSQLConnBeginStartInfo) func(trace.DatabaseSQLConnBeginDoneInfo) {
+		if cfg.detailer.Details()&trace.DatabaseSQLConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
-				prefix+"_begin",
+				prefix+"_tx_begin",
 			)
 			return func(info trace.DatabaseSQLConnBeginDoneInfo) {
 				finish(
@@ -120,11 +118,14 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
-		t.OnTxRollback = func(info trace.DatabaseSQLTxRollbackStartInfo) func(trace.DatabaseSQLTxRollbackDoneInfo) {
+		return nil
+	}
+	t.OnTxRollback = func(info trace.DatabaseSQLTxRollbackStartInfo) func(trace.DatabaseSQLTxRollbackDoneInfo) {
+		if cfg.detailer.Details()&trace.DatabaseSQLConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
-				prefix+"_rollback",
+				prefix+"_tx_rollback",
 				attribute.String("transaction_id", safe.ID(info.Tx)),
 			)
 			return func(info trace.DatabaseSQLTxRollbackDoneInfo) {
@@ -134,11 +135,14 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
-		t.OnTxCommit = func(info trace.DatabaseSQLTxCommitStartInfo) func(trace.DatabaseSQLTxCommitDoneInfo) {
+		return nil
+	}
+	t.OnTxCommit = func(info trace.DatabaseSQLTxCommitStartInfo) func(trace.DatabaseSQLTxCommitDoneInfo) {
+		if cfg.detailer.Details()&trace.DatabaseSQLConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
-				prefix+"_commit",
+				prefix+"_tx_commit",
 				attribute.String("transaction_id", safe.ID(info.Tx)),
 			)
 			return func(info trace.DatabaseSQLTxCommitDoneInfo) {
@@ -148,12 +152,15 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
-		t.OnTxExec = func(info trace.DatabaseSQLTxExecStartInfo) func(trace.DatabaseSQLTxExecDoneInfo) {
+		return nil
+	}
+	t.OnTxExec = func(info trace.DatabaseSQLTxExecStartInfo) func(trace.DatabaseSQLTxExecDoneInfo) {
+		if cfg.detailer.Details()&trace.DatabaseSQLConnEvents != 0 {
 			start := followSpan(
-				tracer,
+				cfg.tracer,
 				otelTrace.SpanFromContext(info.TxContext).SpanContext(),
 				info.Context,
-				prefix+"_exec",
+				prefix+"_tx_exec",
 				attribute.String("query", info.Query),
 				attribute.String("transaction_id", safe.ID(info.Tx)),
 				attribute.Bool("idempotent", info.Idempotent),
@@ -165,12 +172,15 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
-		t.OnTxQuery = func(info trace.DatabaseSQLTxQueryStartInfo) func(trace.DatabaseSQLTxQueryDoneInfo) {
+		return nil
+	}
+	t.OnTxQuery = func(info trace.DatabaseSQLTxQueryStartInfo) func(trace.DatabaseSQLTxQueryDoneInfo) {
+		if cfg.detailer.Details()&trace.DatabaseSQLConnEvents != 0 {
 			start := followSpan(
-				tracer,
+				cfg.tracer,
 				otelTrace.SpanFromContext(info.TxContext).SpanContext(),
 				info.Context,
-				prefix+"_query",
+				prefix+"_tx_query",
 				attribute.String("query", info.Query),
 				attribute.String("transaction_id", safe.ID(info.Tx)),
 				attribute.Bool("idempotent", info.Idempotent),
@@ -182,15 +192,14 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
+		return nil
 	}
-	if details&trace.DatabaseSQLStmtEvents != 0 {
-		//nolint:govet
-		prefix := prefix + "_stmt"
-		t.OnStmtExec = func(info trace.DatabaseSQLStmtExecStartInfo) func(trace.DatabaseSQLStmtExecDoneInfo) {
+	t.OnStmtExec = func(info trace.DatabaseSQLStmtExecStartInfo) func(trace.DatabaseSQLStmtExecDoneInfo) {
+		if cfg.detailer.Details()&trace.DatabaseSQLStmtEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
-				prefix+"_exec",
+				prefix+"_stmt_exec",
 				attribute.String("query", info.Query),
 			)
 			return func(info trace.DatabaseSQLStmtExecDoneInfo) {
@@ -200,11 +209,14 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
-		t.OnStmtQuery = func(info trace.DatabaseSQLStmtQueryStartInfo) func(trace.DatabaseSQLStmtQueryDoneInfo) {
+		return nil
+	}
+	t.OnStmtQuery = func(info trace.DatabaseSQLStmtQueryStartInfo) func(trace.DatabaseSQLStmtQueryDoneInfo) {
+		if cfg.detailer.Details()&trace.DatabaseSQLStmtEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
-				prefix+"_query",
+				prefix+"_stmt_query",
 				attribute.String("query", info.Query),
 			)
 			return func(info trace.DatabaseSQLStmtQueryDoneInfo) {
@@ -214,6 +226,7 @@ func DatabaseSQL(tracer otelTrace.Tracer, details trace.Details) (t trace.Databa
 				)
 			}
 		}
+		return nil
 	}
 	return t
 }

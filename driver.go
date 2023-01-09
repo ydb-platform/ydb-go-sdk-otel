@@ -4,24 +4,18 @@ import (
 	"context"
 	"fmt"
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
-
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 )
 
 // Driver makes Driver with publishing traces
-func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
-	if tracer == nil {
-		tracer = otel.Tracer(tracerID)
-	}
-	if details&trace.DriverNetEvents != 0 {
-		t.OnNetDial = func(info trace.DriverNetDialStartInfo) func(trace.DriverNetDialDoneInfo) {
+func Driver(cfg *config) (t trace.Driver) {
+	t.OnNetDial = func(info trace.DriverNetDialStartInfo) func(trace.DriverNetDialDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverNetEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_net_dial",
 				attribute.String("address", info.Address),
@@ -30,11 +24,12 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				finish(start, info.Error)
 			}
 		}
+		return nil
 	}
-	if details&trace.DriverRepeaterEvents != 0 {
-		t.OnRepeaterWakeUp = func(info trace.DriverRepeaterWakeUpStartInfo) func(trace.DriverRepeaterWakeUpDoneInfo) {
+	t.OnRepeaterWakeUp = func(info trace.DriverRepeaterWakeUpStartInfo) func(trace.DriverRepeaterWakeUpDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverRepeaterEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_repeater_wake_up",
 				attribute.String("name", info.Name),
@@ -47,11 +42,12 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				)
 			}
 		}
+		return nil
 	}
-	if details&trace.DriverConnEvents != 0 {
-		t.OnConnTake = func(info trace.DriverConnTakeStartInfo) func(trace.DriverConnTakeDoneInfo) {
+	t.OnConnTake = func(info trace.DriverConnTakeStartInfo) func(trace.DriverConnTakeDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_conn_take",
 				attribute.String("address", safe.Address(info.Endpoint)),
@@ -63,9 +59,12 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				)
 			}
 		}
-		t.OnConnInvoke = func(info trace.DriverConnInvokeStartInfo) func(trace.DriverConnInvokeDoneInfo) {
+		return nil
+	}
+	t.OnConnInvoke = func(info trace.DriverConnInvokeStartInfo) func(trace.DriverConnInvokeDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_conn_invoke",
 				attribute.String("address", safe.Address(info.Endpoint)),
@@ -85,15 +84,18 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				)
 			}
 		}
-		t.OnConnNewStream = func(
-			info trace.DriverConnNewStreamStartInfo,
-		) func(
-			trace.DriverConnNewStreamRecvInfo,
-		) func(
-			trace.DriverConnNewStreamDoneInfo,
-		) {
+		return nil
+	}
+	t.OnConnNewStream = func(
+		info trace.DriverConnNewStreamStartInfo,
+	) func(
+		trace.DriverConnNewStreamRecvInfo,
+	) func(
+		trace.DriverConnNewStreamDoneInfo,
+	) {
+		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_conn_new_stream",
 				attribute.String("address", safe.Address(info.Endpoint)),
@@ -110,9 +112,12 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				}
 			}
 		}
-		t.OnConnPark = func(info trace.DriverConnParkStartInfo) func(trace.DriverConnParkDoneInfo) {
+		return nil
+	}
+	t.OnConnPark = func(info trace.DriverConnParkStartInfo) func(trace.DriverConnParkDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_conn_park",
 				attribute.String("address", safe.Address(info.Endpoint)),
@@ -124,9 +129,12 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				)
 			}
 		}
-		t.OnConnClose = func(info trace.DriverConnCloseStartInfo) func(trace.DriverConnCloseDoneInfo) {
+		return nil
+	}
+	t.OnConnClose = func(info trace.DriverConnCloseStartInfo) func(trace.DriverConnCloseDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_conn_close",
 				attribute.String("address", safe.Address(info.Endpoint)),
@@ -138,9 +146,12 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				)
 			}
 		}
-		t.OnConnBan = func(info trace.DriverConnBanStartInfo) func(trace.DriverConnBanDoneInfo) {
+		return nil
+	}
+	t.OnConnBan = func(info trace.DriverConnBanStartInfo) func(trace.DriverConnBanDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_conn_ban",
 				attribute.String("state", safe.Stringer(info.State)),
@@ -156,9 +167,12 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				)
 			}
 		}
-		t.OnConnAllow = func(info trace.DriverConnAllowStartInfo) func(trace.DriverConnAllowDoneInfo) {
+		return nil
+	}
+	t.OnConnAllow = func(info trace.DriverConnAllowStartInfo) func(trace.DriverConnAllowDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_conn_allow",
 				attribute.String("state", safe.Stringer(info.State)),
@@ -173,11 +187,12 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				)
 			}
 		}
+		return nil
 	}
-	if details&trace.DriverBalancerEvents != 0 {
-		t.OnBalancerInit = func(info trace.DriverBalancerInitStartInfo) func(trace.DriverBalancerInitDoneInfo) {
+	t.OnBalancerInit = func(info trace.DriverBalancerInitStartInfo) func(trace.DriverBalancerInitDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverBalancerEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_balancer_init",
 			)
@@ -185,9 +200,12 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				finish(start, nil)
 			}
 		}
-		t.OnBalancerClose = func(info trace.DriverBalancerCloseStartInfo) func(trace.DriverBalancerCloseDoneInfo) {
+		return nil
+	}
+	t.OnBalancerClose = func(info trace.DriverBalancerCloseStartInfo) func(trace.DriverBalancerCloseDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverBalancerEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_balancer_close",
 			)
@@ -195,9 +213,12 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				finish(start, info.Error)
 			}
 		}
-		t.OnBalancerUpdate = func(info trace.DriverBalancerUpdateStartInfo) func(trace.DriverBalancerUpdateDoneInfo) {
+		return nil
+	}
+	t.OnBalancerUpdate = func(info trace.DriverBalancerUpdateStartInfo) func(trace.DriverBalancerUpdateDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverBalancerEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_balancer_update",
 				attribute.Bool("need_local_dc", info.NeedLocalDC),
@@ -213,13 +234,16 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				)
 			}
 		}
-		t.OnBalancerChooseEndpoint = func(
-			info trace.DriverBalancerChooseEndpointStartInfo,
-		) func(
-			trace.DriverBalancerChooseEndpointDoneInfo,
-		) {
+		return nil
+	}
+	t.OnBalancerChooseEndpoint = func(
+		info trace.DriverBalancerChooseEndpointStartInfo,
+	) func(
+		trace.DriverBalancerChooseEndpointDoneInfo,
+	) {
+		if cfg.detailer.Details()&trace.DriverBalancerEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_balancer_get",
 			)
@@ -233,11 +257,12 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				finish(start, info.Error)
 			}
 		}
+		return nil
 	}
-	if details&trace.DriverCredentialsEvents != 0 {
-		t.OnGetCredentials = func(info trace.DriverGetCredentialsStartInfo) func(trace.DriverGetCredentialsDoneInfo) {
+	t.OnGetCredentials = func(info trace.DriverGetCredentialsStartInfo) func(trace.DriverGetCredentialsDoneInfo) {
+		if cfg.detailer.Details()&trace.DriverCredentialsEvents != 0 {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_credentials_get",
 			)
@@ -248,13 +273,14 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 				)
 			}
 		}
+		return nil
 	}
 	ctx := context.Background()
-	connectionsTotal := startSpanWithCounter(tracer, &ctx, "ydb_connections", "total")
+	connectionsTotal := startSpanWithCounter(cfg.tracer, &ctx, "ydb_connections", "total")
 	return t.Compose(trace.Driver{
 		OnInit: func(info trace.DriverInitStartInfo) func(trace.DriverInitDoneInfo) {
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_driver_init",
 				attribute.String("endpoint", info.Endpoint),
@@ -268,7 +294,7 @@ func Driver(tracer otelTrace.Tracer, details trace.Details) (t trace.Driver) {
 		OnClose: func(info trace.DriverCloseStartInfo) func(trace.DriverCloseDoneInfo) {
 			connectionsTotal.span.End()
 			start := startSpan(
-				tracer,
+				cfg.tracer,
 				info.Context,
 				"ydb_driver_close",
 			)
