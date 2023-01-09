@@ -8,18 +8,51 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
-func WithTraces(tracer otelTrace.Tracer, details trace.Details) ydb.Option {
-	if tracer == nil {
-		tracer = otel.Tracer(tracerID)
+type Detailer interface {
+	Details() trace.Details
+}
+
+type config struct {
+	tracer   otelTrace.Tracer
+	detailer Detailer
+}
+
+type Option func(c *config)
+
+func WithTracer(tracer otelTrace.Tracer) Option {
+	return func(c *config) {
+		c.tracer = tracer
+	}
+}
+
+func WithDetails(d trace.Details) Option {
+	return func(c *config) {
+		c.detailer = d
+	}
+}
+
+func WithDetailer(d Detailer) Option {
+	return func(c *config) {
+		c.detailer = d
+	}
+}
+
+func WithTraces(opts ...Option) ydb.Option {
+	cfg := &config{
+		tracer:   otel.Tracer(tracerID),
+		detailer: trace.DetailsAll,
+	}
+	for _, opt := range opts {
+		opt(cfg)
 	}
 	return ydb.MergeOptions(
-		ydb.WithTraceDriver(Driver(tracer, details)),
-		ydb.WithTraceTable(Table(tracer, details)),
-		ydb.WithTraceScripting(Scripting(tracer, details)),
-		ydb.WithTraceScheme(Scheme(tracer, details)),
-		ydb.WithTraceCoordination(Coordination(tracer, details)),
-		ydb.WithTraceRatelimiter(Ratelimiter(tracer, details)),
-		ydb.WithTraceDiscovery(Discovery(tracer, details)),
-		ydb.WithTraceDatabaseSQL(DatabaseSQL(tracer, details)),
+		ydb.WithTraceDriver(Driver(cfg)),
+		ydb.WithTraceTable(Table(cfg)),
+		ydb.WithTraceScripting(Scripting(cfg)),
+		ydb.WithTraceScheme(Scheme(cfg)),
+		ydb.WithTraceCoordination(Coordination(cfg)),
+		ydb.WithTraceRatelimiter(Ratelimiter(cfg)),
+		ydb.WithTraceDiscovery(Discovery(cfg)),
+		ydb.WithTraceDatabaseSQL(DatabaseSQL(cfg)),
 	)
 }
