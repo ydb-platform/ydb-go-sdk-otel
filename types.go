@@ -3,6 +3,7 @@ package ydb
 import (
 	"context"
 	"errors"
+	"go.opentelemetry.io/otel/codes"
 	"net/url"
 	"sync/atomic"
 
@@ -21,9 +22,9 @@ const (
 
 func logError(s trace.Span, err error, fields ...attribute.KeyValue) {
 	s.RecordError(err, trace.WithAttributes(append(fields, attribute.Bool(errorAttribute, true))...))
+	s.SetStatus(codes.Error, err.Error())
 	m := retry.Check(err)
 	s.SetAttributes(
-		attribute.Bool(errorAttribute, true),
 		attribute.Bool(errorAttribute+".delete_session", m.MustDeleteSession()),
 		attribute.Bool(errorAttribute+".must_retry", m.MustRetry(false)),
 		attribute.Bool(errorAttribute+".must_retry_idempotent", m.MustRetry(true)),
