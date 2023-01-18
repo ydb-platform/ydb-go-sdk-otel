@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"path"
-	"strconv"
 	"sync"
 	"time"
 
@@ -18,7 +20,6 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	jaegerPropogator "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/jaeger"
@@ -34,8 +35,14 @@ const (
 	serviceName = "ydb-go-sdk"
 )
 
+var (
+	stopAfter = flag.Duration("stop-after", 0, "define -stop-after=1m for limit time of benchmark")
+	prefix    = flag.String("prefix", "ydb-go-sdk-otel/bench", "prefix for tables")
+)
+
 func init() {
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 500
+	log.SetOutput(io.Discard)
 }
 
 func tracerProvider(url string) (*tracesdk.TracerProvider, error) {
@@ -63,7 +70,17 @@ func tracerProvider(url string) (*tracesdk.TracerProvider, error) {
 }
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	flag.Parse()
+
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+	)
+	if *stopAfter == 0 {
+		ctx, cancel = context.WithCancel(context.Background())
+	} else {
+		ctx, cancel = context.WithTimeout(context.Background(), *stopAfter)
+	}
 	defer cancel()
 
 	tp, err := tracerProvider(tracerURL)
@@ -95,7 +112,7 @@ func main() {
 		creds,
 		ydb.WithSessionPoolSizeLimit(300),
 		ydb.WithSessionPoolIdleThreshold(time.Second*5),
-		ydbOtel.WithTraces(tracer, trace.DetailsAll),
+		ydbOtel.WithTraces(ydbOtel.WithTracer(tracer)),
 	)
 	if err != nil {
 		panic(err)
@@ -104,102 +121,118 @@ func main() {
 		_ = db.Close(ctx)
 	}()
 
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	if concurrency, err := strconv.Atoi(os.Getenv("YDB_PREPARE_BENCH_DATA")); err == nil && concurrency > 0 {
-		_ = upsertData(ctx, db.Table(), db.Name(), "series", concurrency)
+	err = prepareSchema(ctx, db.Table(), path.Join(db.Name(), *prefix), "series")
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	concurrency := func() int {
-		if concurrency, err := strconv.Atoi(os.Getenv("CONCURRENCY")); err != nil && concurrency > 0 {
-			return concurrency
-		}
-		return 300
-	}()
-
-	wg.Add(concurrency)
-
-	for i := 0; i < concurrency; i++ {
+	wg := &sync.WaitGroup{}
+	for i := 0; i < 300; i++ {
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for {
-				//nolint:gosec
-				time.Sleep(time.Duration(rand.Int63n(int64(time.Second))))
-				_, _ = scanSelect(
-					ctx,
-					db.Table(),
-					db.Name(),
-					//nolint:gosec
-					rand.Int63n(25000),
-				)
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(time.Duration(rand.Int63n(int64(time.Second)))): //nolint:gosec
+					switch rand.Int63n(3) {
+					case 0:
+						err = upsertData(ctx,
+							db.Table(),
+							path.Join(db.Name(), *prefix),
+							"series",
+							rand.Int63n(3000),
+						)
+						if err != nil {
+							log.Println(err)
+						}
+					case 1:
+						_, err = scanDefault(
+							ctx,
+							db.Table(),
+							path.Join(db.Name(), *prefix),
+							//nolint:gosec
+							rand.Int63n(1000),
+						)
+						if err != nil {
+							log.Println(err)
+						}
+					case 2:
+						_, err = scanSelect(
+							ctx,
+							db.Table(),
+							path.Join(db.Name(), *prefix),
+							//nolint:gosec
+							rand.Int63n(25000),
+						)
+						if err != nil {
+							log.Println(err)
+						}
+					}
+				}
 			}
 		}()
 	}
 	wg.Wait()
 }
 
-func upsertData(ctx context.Context, c table.Client, prefix, tableName string, concurrency int) (err error) {
-	err = c.Do(ctx,
+func prepareSchema(ctx context.Context, c table.Client, prefix, tableName string) (err error) {
+	_ = c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			return s.DropTable(ctx, path.Join(prefix, tableName))
 		},
 		table.WithIdempotent(),
 	)
-	if err != nil {
-		return err
-	}
-	err = c.Do(ctx,
+	return c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			return s.CreateTable(ctx, path.Join(prefix, tableName),
-				options.WithColumn("series_id", types.Optional(types.TypeUint64)),
-				options.WithColumn("title", types.Optional(types.TypeUTF8)),
-				options.WithColumn("series_info", types.Optional(types.TypeUTF8)),
+				options.WithColumn("series_id", types.TypeUint64),
+				options.WithColumn("title", types.Optional(types.TypeText)),
+				options.WithColumn("series_info", types.Optional(types.TypeText)),
 				options.WithColumn("release_date", types.Optional(types.TypeDate)),
-				options.WithColumn("comment", types.Optional(types.TypeUTF8)),
+				options.WithColumn("comment", types.Optional(types.TypeText)),
 				options.WithPrimaryKeyColumn("series_id"),
+				options.WithPartitioningSettings(
+					options.WithMinPartitionsCount(10),
+					options.WithMaxPartitionsCount(50),
+					options.WithPartitioningByLoad(options.FeatureEnabled),
+					options.WithPartitioningBySize(options.FeatureEnabled),
+					options.WithPartitionSizeMb(2048),
+				),
 			)
 		},
 		table.WithIdempotent(),
 	)
-	if err != nil {
-		return err
+}
+
+func upsertData(ctx context.Context, c table.Client, prefix, tableName string, rowsLen int64) (err error) {
+	batchSize := int64(1000)
+	for shift := int64(0); shift < rowsLen; shift += batchSize {
+		rows := make([]types.Value, 0, batchSize)
+		for i := int64(0); i < batchSize; i++ {
+			rows = append(rows, types.StructValue(
+				types.StructFieldValue("series_id", types.Uint64Value(uint64(i+shift+3))),
+				types.StructFieldValue("title", types.UTF8Value(fmt.Sprintf("series No. %d title", i+shift+3))),
+				types.StructFieldValue("series_info", types.UTF8Value(fmt.Sprintf("series No. %d info", i+shift+3))),
+				types.StructFieldValue("release_date", types.DateValueFromTime(time.Now())),
+				types.StructFieldValue("comment", types.UTF8Value(fmt.Sprintf("series No. %d comment", i+shift+3))),
+			))
+		}
+		err = c.Do(ctx,
+			func(ctx context.Context, session table.Session) (err error) {
+				return session.BulkUpsert(
+					ctx,
+					path.Join(prefix, tableName),
+					types.ListValue(rows...),
+				)
+			},
+			table.WithIdempotent(),
+		)
+		if err != nil {
+			return err
+		}
 	}
-	rowsLen := 25000000
-	batchSize := 1000
-	wg := sync.WaitGroup{}
-	sema := make(chan struct{}, concurrency)
-	for shift := 0; shift < rowsLen; shift += batchSize {
-		wg.Add(1)
-		sema <- struct{}{}
-		go func(prefix, tableName string, shift int) {
-			defer func() {
-				<-sema
-				wg.Done()
-			}()
-			rows := make([]types.Value, 0, batchSize)
-			for i := 0; i < batchSize; i++ {
-				rows = append(rows, types.StructValue(
-					types.StructFieldValue("series_id", types.Uint64Value(uint64(i+shift+3))),
-					types.StructFieldValue("title", types.UTF8Value(fmt.Sprintf("series No. %d title", i+shift+3))),
-					types.StructFieldValue("series_info", types.UTF8Value(fmt.Sprintf("series No. %d info", i+shift+3))),
-					types.StructFieldValue("release_date", types.DateValueFromTime(time.Now())),
-					types.StructFieldValue("comment", types.UTF8Value(fmt.Sprintf("series No. %d comment", i+shift+3))),
-				))
-			}
-			_ = c.Do(ctx,
-				func(ctx context.Context, session table.Session) (err error) {
-					return session.BulkUpsert(
-						ctx,
-						path.Join(prefix, tableName),
-						types.ListValue(rows...),
-					)
-				},
-				table.WithIdempotent(),
-			)
-		}(prefix, tableName, shift)
-	}
-	wg.Wait()
 	return nil
 }
 
@@ -218,11 +251,7 @@ func scanSelect(ctx context.Context, c table.Client, prefix string, limit int64)
 		func(ctx context.Context, s table.Session) error {
 			var res result.StreamResult
 			count = 0
-			res, err = s.StreamExecuteScanQuery(
-				ctx,
-				query,
-				table.NewQueryParameters(),
-			)
+			res, err = s.StreamExecuteScanQuery(ctx, query, table.NewQueryParameters())
 			if err != nil {
 				return err
 			}
@@ -234,11 +263,70 @@ func scanSelect(ctx context.Context, c table.Client, prefix string, limit int64)
 				title *string
 				date  *time.Time
 			)
-			log.Printf("> select_simple_transaction:\n")
-			for res.NextResultSet(ctx, "series_id", "title", "release_date") {
+			log.Printf("> scan_select:\n")
+			for res.NextResultSet(ctx) {
 				for res.NextRow() {
 					count++
-					err = res.Scan(&id, &title, &date)
+					err = res.ScanNamed(
+						named.Optional("series_id", &id),
+						named.Optional("title", &title),
+						named.Optional("release_date", &date),
+					)
+					if err != nil {
+						return err
+					}
+					log.Printf(
+						"  > %d %s %s\n",
+						*id, *title, *date,
+					)
+				}
+			}
+			return res.Err()
+		},
+		table.WithIdempotent(),
+	)
+	return count, err
+}
+
+func scanDefault(ctx context.Context, c table.Client, prefix string, limit int64) (count uint64, err error) {
+	var (
+		query = fmt.Sprintf(`
+		PRAGMA TablePathPrefix("%s");
+		SELECT
+			series_id,
+			title,
+			release_date
+		FROM series LIMIT %d;`,
+			prefix,
+			limit,
+		)
+		txControl = table.DefaultTxControl()
+	)
+	err = c.Do(ctx,
+		func(ctx context.Context, s table.Session) error {
+			var res result.StreamResult
+			count = 0
+			_, res, err = s.Execute(ctx, txControl, query, table.NewQueryParameters())
+			if err != nil {
+				return err
+			}
+			defer func() {
+				_ = res.Close()
+			}()
+			var (
+				id    *uint64
+				title *string
+				date  *time.Time
+			)
+			log.Printf("> scan_default:\n")
+			for res.NextResultSet(ctx) {
+				for res.NextRow() {
+					count++
+					err = res.ScanNamed(
+						named.Optional("series_id", &id),
+						named.Optional("title", &title),
+						named.Optional("release_date", &date),
+					)
 					if err != nil {
 						return err
 					}
