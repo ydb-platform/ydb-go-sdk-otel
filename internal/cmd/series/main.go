@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"flag"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -12,7 +14,6 @@ import (
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	jaegerPropogator "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/jaeger"
@@ -29,8 +30,13 @@ const (
 	prefix      = "ydb-go-sdk-otel/series"
 )
 
+var (
+	stopAfter = flag.Duration("stop-after", 0, "define -stop-after=1m for limit time of benchmark")
+)
+
 func init() {
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 500
+	log.SetOutput(io.Discard)
 }
 
 func tracerProvider(url string) (*tracesdk.TracerProvider, error) {
@@ -58,7 +64,17 @@ func tracerProvider(url string) (*tracesdk.TracerProvider, error) {
 }
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	flag.Parse()
+
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+	)
+	if *stopAfter == 0 {
+		ctx, cancel = context.WithCancel(context.Background())
+	} else {
+		ctx, cancel = context.WithTimeout(context.Background(), *stopAfter)
+	}
 	defer cancel()
 
 	tp, err := tracerProvider(tracerURL)
@@ -79,7 +95,7 @@ func main() {
 
 	nativeDriver, err := ydb.Open(ctx, os.Getenv("YDB_CONNECTION_STRING"),
 		ydb.WithDiscoveryInterval(5*time.Second),
-		ydbOtel.WithTraces(tracer, trace.DetailsAll),
+		ydbOtel.WithTraces(ydbOtel.WithTracer(tracer)),
 	)
 	if err != nil {
 		panic(err)
@@ -118,32 +134,47 @@ func main() {
 
 	wg := sync.WaitGroup{}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		wg.Add(3)
 		go func() {
 			defer wg.Done()
 			for {
-				err = fillTablesWithData(ctx, db, prefix)
-				if err != nil {
-					log.Fatalf("fill tables with data error: %v", err)
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					err = fillTablesWithData(ctx, db, prefix)
+					if err != nil {
+						log.Println("fill tables with data error: %v", err)
+					}
 				}
 			}
 		}()
 		go func() {
 			defer wg.Done()
 			for {
-				err = selectDefault(ctx, db, prefix)
-				if err != nil {
-					log.Fatal(err)
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					err = selectDefault(ctx, db, prefix)
+					if err != nil {
+						log.Println(err)
+					}
 				}
 			}
 		}()
 		go func() {
 			defer wg.Done()
 			for {
-				err = selectScan(ctx, db, prefix)
-				if err != nil {
-					log.Fatal(err)
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					err = selectScan(ctx, db, prefix)
+					if err != nil {
+						log.Println(err)
+					}
 				}
 			}
 		}()

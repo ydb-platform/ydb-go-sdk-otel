@@ -36,34 +36,6 @@ func sliceToInterfaces[T any](v []T) []interface{} {
 }
 
 func selectDefault(ctx context.Context, db *sql.DB, prefix string) (err error) {
-	// explain of query
-	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) (err error) {
-		row := cc.QueryRowContext(ydb.WithQueryMode(ctx, ydb.ExplainQueryMode),
-			render(
-				template.Must(template.New("").Parse(`
-					PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
-
-					SELECT series_id, title, release_date FROM series;
-				`)), struct {
-					TablePathPrefix string
-				}{
-					TablePathPrefix: prefix,
-				},
-			),
-		)
-		var (
-			ast  string
-			plan string
-		)
-		if err = row.Scan(&ast, &plan); err != nil {
-			return err
-		}
-		log.Println(plan, ast)
-		return nil
-	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
-	if err != nil {
-		return fmt.Errorf("explain query failed: %w", err)
-	}
 	err = retry.Do(ydb.WithTxControl(ctx, table.OnlineReadOnlyTxControl()), db,
 		func(ctx context.Context, cc *sql.Conn) (err error) {
 			rows, err := cc.QueryContext(ctx,
@@ -71,7 +43,7 @@ func selectDefault(ctx context.Context, db *sql.DB, prefix string) (err error) {
 					template.Must(template.New("").Parse(`
 					PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
 
-					SELECT series_id, title, release_date FROM series;
+					SELECT series_id, title, release_date FROM series LIMIT 1000;
 				`)), struct {
 						TablePathPrefix string
 					}{
