@@ -2,6 +2,7 @@ package ydb
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"sync/atomic"
 
@@ -22,10 +23,18 @@ func logError(s trace.Span, err error, fields ...attribute.KeyValue) {
 	s.RecordError(err, trace.WithAttributes(append(fields, attribute.Bool(errorAttribute, true))...))
 	m := retry.Check(err)
 	s.SetAttributes(
+		attribute.Bool(errorAttribute, true),
 		attribute.Bool(errorAttribute+".delete_session", m.MustDeleteSession()),
 		attribute.Bool(errorAttribute+".must_retry", m.MustRetry(false)),
 		attribute.Bool(errorAttribute+".must_retry_idempotent", m.MustRetry(true)),
 	)
+	var ydbErr ydb.Error
+	if errors.As(err, &ydbErr) {
+		s.SetAttributes(
+			attribute.Int(errorAttribute+".ydb.code", int(ydbErr.Code())),
+			attribute.String(errorAttribute+".ydb.name", ydbErr.Name()),
+		)
+	}
 }
 
 func finish(s trace.Span, err error, fields ...attribute.KeyValue) {
