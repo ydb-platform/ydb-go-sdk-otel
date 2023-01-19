@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	jaegerPropogator "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/jaeger"
@@ -21,17 +19,20 @@ import (
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 
+	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
+
 	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 )
 
 const (
 	tracerURL   = "http://localhost:14268/api/traces"
 	serviceName = "ydb-go-sdk-otel"
-	prefix      = "ydb-go-sdk-otel/series"
 )
 
 var (
 	stopAfter = flag.Duration("stop-after", 0, "define -stop-after=1m for limit time of benchmark")
+	prefix    = flag.String("prefix", "ydb-go-sdk-otel/series", "prefix path for tables")
 )
 
 func init() {
@@ -115,7 +116,7 @@ func main() {
 		panic(err)
 	}
 
-	prefix := path.Join(cc.Name(), prefix)
+	prefix := path.Join(cc.Name(), *prefix)
 
 	err = sugar.RemoveRecursive(ctx, cc, prefix)
 	if err != nil {
@@ -145,7 +146,7 @@ func main() {
 				default:
 					err = fillTablesWithData(ctx, db, prefix)
 					if err != nil {
-						log.Println("fill tables with data error: %v", err)
+						log.Printf("fill tables with data error: %v\n", err)
 					}
 				}
 			}

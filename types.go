@@ -2,13 +2,16 @@ package ydb
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"sync/atomic"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/meta"
 	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
 )
 
@@ -20,12 +23,20 @@ const (
 
 func logError(s trace.Span, err error, fields ...attribute.KeyValue) {
 	s.RecordError(err, trace.WithAttributes(append(fields, attribute.Bool(errorAttribute, true))...))
+	s.SetStatus(codes.Error, err.Error())
 	m := retry.Check(err)
 	s.SetAttributes(
 		attribute.Bool(errorAttribute+".delete_session", m.MustDeleteSession()),
 		attribute.Bool(errorAttribute+".must_retry", m.MustRetry(false)),
 		attribute.Bool(errorAttribute+".must_retry_idempotent", m.MustRetry(true)),
 	)
+	var ydbErr ydb.Error
+	if errors.As(err, &ydbErr) {
+		s.SetAttributes(
+			attribute.Int(errorAttribute+".ydb.code", int(ydbErr.Code())),
+			attribute.String(errorAttribute+".ydb.name", ydbErr.Name()),
+		)
+	}
 }
 
 func finish(s trace.Span, err error, fields ...attribute.KeyValue) {
@@ -86,7 +97,7 @@ func startSpan(
 		operationName,
 		trace.WithAttributes(fields...),
 	)
-	*ctx = ydb.WithTraceID(*ctx, s.SpanContext().TraceID().String())
+	*ctx = meta.WithTraceID(*ctx, s.SpanContext().TraceID().String())
 	return s
 }
 
