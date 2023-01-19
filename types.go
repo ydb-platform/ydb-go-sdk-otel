@@ -3,14 +3,15 @@ package ydb
 import (
 	"context"
 	"errors"
-	"go.opentelemetry.io/otel/codes"
 	"net/url"
 	"sync/atomic"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/meta"
 	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
 )
 
@@ -96,7 +97,7 @@ func startSpan(
 		operationName,
 		trace.WithAttributes(fields...),
 	)
-	*ctx = ydb.WithTraceID(*ctx, s.SpanContext().TraceID().String())
+	*ctx = meta.WithTraceID(*ctx, s.SpanContext().TraceID().String())
 	return s
 }
 

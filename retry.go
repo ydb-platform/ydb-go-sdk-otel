@@ -2,8 +2,8 @@ package ydb
 
 import (
 	"fmt"
-	"go.opentelemetry.io/otel"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
 

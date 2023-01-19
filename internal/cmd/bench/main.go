@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
 	"io"
 	"log"
 	"math/rand"
@@ -14,18 +13,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/balancers"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 	jaegerPropogator "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/jaeger"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/balancers"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 )
@@ -123,7 +124,7 @@ func main() {
 
 	err = prepareSchema(ctx, db.Table(), path.Join(db.Name(), *prefix), "series")
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	wg := &sync.WaitGroup{}
@@ -136,13 +137,13 @@ func main() {
 				case <-ctx.Done():
 					return
 				case <-time.After(time.Duration(rand.Int63n(int64(time.Second)))): //nolint:gosec
-					switch rand.Int63n(3) {
+					switch rand.Int63n(3) { //nolint:gosec
 					case 0:
 						err = upsertData(ctx,
 							db.Table(),
 							path.Join(db.Name(), *prefix),
 							"series",
-							rand.Int63n(3000),
+							rand.Int63n(3000), //nolint:gosec
 						)
 						if err != nil {
 							log.Println(err)
@@ -152,8 +153,7 @@ func main() {
 							ctx,
 							db.Table(),
 							path.Join(db.Name(), *prefix),
-							//nolint:gosec
-							rand.Int63n(1000),
+							rand.Int63n(1000), //nolint:gosec
 						)
 						if err != nil {
 							log.Println(err)
@@ -163,8 +163,7 @@ func main() {
 							ctx,
 							db.Table(),
 							path.Join(db.Name(), *prefix),
-							//nolint:gosec
-							rand.Int63n(25000),
+							rand.Int63n(25000), //nolint:gosec
 						)
 						if err != nil {
 							log.Println(err)
