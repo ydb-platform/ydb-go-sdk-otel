@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"path"
 	"text/template"
 	"time"
@@ -283,12 +282,20 @@ func fillTablesWithData(ctx context.Context, db *sql.DB, prefix string) (err err
 
 func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) error {
-		_, err = cc.ExecContext(
-			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
-			fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "series")),
-		)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stdout, "warn: drop series table failed: %v", err)
+		if c, err := ydb.Unwrap(cc); err != nil {
+			return err
+		} else {
+			if exists, err := sugar.IsTableExists(ctx, c.Scheme(), path.Join(prefix, "series")); err != nil {
+				return err
+			} else if exists {
+				_, err = cc.ExecContext(
+					ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
+					fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "series")),
+				)
+				if err != nil {
+					return err
+				}
+			}
 		}
 		_, err = cc.ExecContext(
 			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
@@ -317,7 +324,6 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 			),
 		)
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "create series table failed: %v", err)
 			return err
 		}
 		return nil
@@ -326,12 +332,20 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 		return fmt.Errorf("create table failed: %w", err)
 	}
 	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) error {
-		_, err = cc.ExecContext(
-			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
-			fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "seasons")),
-		)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stdout, "warn: drop seasons table failed: %v", err)
+		if c, err := ydb.Unwrap(cc); err != nil {
+			return err
+		} else {
+			if exists, err := sugar.IsTableExists(ctx, c.Scheme(), path.Join(prefix, "seasons")); err != nil {
+				return err
+			} else if exists {
+				_, err = cc.ExecContext(
+					ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
+					fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "seasons")),
+				)
+				if err != nil {
+					return err
+				}
+			}
 		}
 		_, err = cc.ExecContext(
 			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
@@ -362,7 +376,6 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 			),
 		)
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "create seasons table failed: %v", err)
 			return err
 		}
 		return nil
@@ -371,12 +384,20 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 		return fmt.Errorf("create table failed: %w", err)
 	}
 	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) error {
-		_, err = cc.ExecContext(
-			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
-			fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "episodes")),
-		)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stdout, "warn: drop episodes table failed: %v", err)
+		if c, err := ydb.Unwrap(cc); err != nil {
+			return err
+		} else {
+			if exists, err := sugar.IsTableExists(ctx, c.Scheme(), path.Join(prefix, "episodes")); err != nil {
+				return err
+			} else if exists {
+				_, err = cc.ExecContext(
+					ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
+					fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "episodes")),
+				)
+				if err != nil {
+					return err
+				}
+			}
 		}
 		_, err = cc.ExecContext(
 			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
@@ -408,7 +429,6 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 			),
 		)
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "create episodes table failed: %v", err)
 			return err
 		}
 		return nil
