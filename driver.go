@@ -12,20 +12,6 @@ import (
 
 // Driver makes Driver with publishing traces
 func Driver(cfg *config) (t trace.Driver) {
-	t.OnNetDial = func(info trace.DriverNetDialStartInfo) func(trace.DriverNetDialDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverNetEvents != 0 {
-			start := startSpan(
-				cfg.tracer,
-				info.Context,
-				"ydb_net_dial",
-				attribute.String("address", info.Address),
-			)
-			return func(info trace.DriverNetDialDoneInfo) {
-				finish(start, info.Error)
-			}
-		}
-		return nil
-	}
 	t.OnRepeaterWakeUp = func(info trace.DriverRepeaterWakeUpStartInfo) func(trace.DriverRepeaterWakeUpDoneInfo) {
 		if cfg.detailer.Details()&trace.DriverRepeaterEvents != 0 {
 			start := startSpan(
