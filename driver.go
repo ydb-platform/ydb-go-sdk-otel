@@ -263,7 +263,7 @@ func Driver(cfg *config) (t trace.Driver) {
 	}
 	ctx := context.Background()
 	connectionsTotal := startSpanWithCounter(cfg.tracer, &ctx, "ydb_connections", "total")
-	return t.Compose(trace.Driver{
+	return *t.Compose(&trace.Driver{
 		OnInit: func(info trace.DriverInitStartInfo) func(trace.DriverInitDoneInfo) {
 			start := startSpan(
 				cfg.tracer,
@@ -287,17 +287,6 @@ func Driver(cfg *config) (t trace.Driver) {
 			return func(info trace.DriverCloseDoneInfo) {
 				finish(start, info.Error)
 			}
-		},
-		OnNetDial: func(info trace.DriverNetDialStartInfo) func(trace.DriverNetDialDoneInfo) {
-			return func(info trace.DriverNetDialDoneInfo) {
-				if info.Error == nil {
-					connectionsTotal.add(1)
-				}
-			}
-		},
-		OnNetClose: func(info trace.DriverNetCloseStartInfo) func(trace.DriverNetCloseDoneInfo) {
-			connectionsTotal.add(-1)
-			return nil
 		},
 	})
 }
