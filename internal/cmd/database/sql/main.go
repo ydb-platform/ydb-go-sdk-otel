@@ -28,12 +28,10 @@ import (
 const (
 	tracerURL   = "http://localhost:14268/api/traces"
 	serviceName = "ydb-go-sdk-otel"
+	prefix      = "ydb-go-sdk-otel/bench/database-sql"
 )
 
-var (
-	stopAfter = flag.Duration("stop-after", 0, "define -stop-after=1m for limit time of benchmark")
-	prefix    = flag.String("prefix", "ydb-go-sdk-otel/series", "prefix path for tables")
-)
+var stopAfter = flag.Duration("stop-after", 0, "define -stop-after=1m for limit time of benchmark")
 
 func init() {
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 500
@@ -103,7 +101,12 @@ func main() {
 	}
 	defer func() { _ = nativeDriver.Close(ctx) }()
 
-	connector, err := ydb.Connector(nativeDriver)
+	prefix := path.Join(nativeDriver.Name(), prefix)
+
+	connector, err := ydb.Connector(nativeDriver,
+		ydb.WithTablePathPrefix(prefix),
+		ydb.WithAutoDeclare(),
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -116,8 +119,6 @@ func main() {
 		panic(err)
 	}
 
-	prefix := path.Join(cc.Name(), *prefix)
-
 	err = sugar.RemoveRecursive(ctx, cc, prefix)
 	if err != nil {
 		panic(err)
@@ -128,7 +129,7 @@ func main() {
 		panic(err)
 	}
 
-	err = fillTablesWithData(ctx, db, prefix)
+	err = fillTablesWithData(ctx, db)
 	if err != nil {
 		panic(err)
 	}
@@ -144,7 +145,7 @@ func main() {
 				case <-ctx.Done():
 					return
 				default:
-					err = fillTablesWithData(ctx, db, prefix)
+					err = fillTablesWithData(ctx, db)
 					if err != nil {
 						log.Printf("fill tables with data error: %v\n", err)
 					}
@@ -158,7 +159,7 @@ func main() {
 				case <-ctx.Done():
 					return
 				default:
-					err = selectDefault(ctx, db, prefix)
+					err = selectDefault(ctx, db)
 					if err != nil {
 						log.Println(err)
 					}
@@ -172,7 +173,7 @@ func main() {
 				case <-ctx.Done():
 					return
 				default:
-					err = selectScan(ctx, db, prefix)
+					err = selectScan(ctx, db)
 					if err != nil {
 						log.Println(err)
 					}

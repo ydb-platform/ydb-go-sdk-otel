@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/url"
-	"sync/atomic"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -61,13 +60,6 @@ type counter struct {
 	span    trace.Span
 	counter int64
 	name    string
-}
-
-func (s *counter) add(delta int64) {
-	atomic.AddInt64(&s.counter, delta)
-	s.span.SetAttributes(
-		attribute.Int64(s.name, atomic.LoadInt64(&s.counter)),
-	)
 }
 
 func startSpanWithCounter(

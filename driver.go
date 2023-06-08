@@ -30,7 +30,7 @@ func Driver(cfg *config) (t trace.Driver) {
 		}
 		return nil
 	}
-	t.OnConnTake = func(info trace.DriverConnTakeStartInfo) func(trace.DriverConnTakeDoneInfo) {
+	t.OnConnDial = func(info trace.DriverConnDialStartInfo) func(trace.DriverConnDialDoneInfo) {
 		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
 			start := startSpan(
 				cfg.tracer,
@@ -38,7 +38,7 @@ func Driver(cfg *config) (t trace.Driver) {
 				"ydb_conn_take",
 				attribute.String("address", safe.Address(info.Endpoint)),
 			)
-			return func(info trace.DriverConnTakeDoneInfo) {
+			return func(info trace.DriverConnDialDoneInfo) {
 				finish(
 					start,
 					info.Error,
@@ -215,7 +215,7 @@ func Driver(cfg *config) (t trace.Driver) {
 				for i, e := range info.Endpoints {
 					endpoints[i] = e.String()
 				}
-				finish(start, info.Error,
+				finish(start, nil,
 					attribute.StringSlice("endpoints", endpoints),
 				)
 			}
