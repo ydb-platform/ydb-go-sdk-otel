@@ -10,8 +10,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/meta"
-	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
+	ydbRetry "github.com/ydb-platform/ydb-go-sdk/v3/retry"
 )
 
 const (
@@ -23,7 +22,7 @@ const (
 func logError(s trace.Span, err error, fields ...attribute.KeyValue) {
 	s.RecordError(err, trace.WithAttributes(append(fields, attribute.Bool(errorAttribute, true))...))
 	s.SetStatus(codes.Error, err.Error())
-	m := retry.Check(err)
+	m := ydbRetry.Check(err)
 	s.SetAttributes(
 		attribute.Bool(errorAttribute+".delete_session", m.MustDeleteSession()),
 		attribute.Bool(errorAttribute+".must_retry", m.MustRetry(false)),
@@ -41,72 +40,34 @@ func logError(s trace.Span, err error, fields ...attribute.KeyValue) {
 func finish(s trace.Span, err error, fields ...attribute.KeyValue) {
 	if err != nil {
 		logError(s, err, fields...)
-	} else {
+	} else if len(fields) > 0 {
 		s.SetAttributes(fields...)
 	}
 	s.End()
 }
 
-//nolint:unparam
-func intermediate(s trace.Span, err error, fields ...attribute.KeyValue) {
-	if err != nil {
-		logError(s, err, fields...)
-	} else {
-		s.SetAttributes(fields...)
-	}
-}
-
-type counter struct {
-	span    trace.Span
-	counter int64
-	name    string
-}
-
-func startSpanWithCounter(
-	tracer trace.Tracer,
-	ctx *context.Context,
-	operationName string,
-	counterName string,
-	fields ...attribute.KeyValue,
-) (c *counter) {
-	fields = append(fields, attribute.String("ydb.driver.sensor", operationName+"_"+counterName))
-	return &counter{
-		span:    startSpan(tracer, ctx, operationName, fields...),
-		counter: 0,
-		name:    counterName,
-	}
-}
-
-func startSpan(
+func childSpanWithReplaceCtx(
 	tracer trace.Tracer,
 	ctx *context.Context,
 	operationName string,
 	fields ...attribute.KeyValue,
 ) (s trace.Span) {
 	fields = append(fields, attribute.String("ydb-go-sdk", version))
-	*ctx, s = tracer.Start(
-		*ctx,
-		operationName,
-		trace.WithAttributes(fields...),
-	)
-	*ctx = meta.WithTraceID(*ctx, s.SpanContext().TraceID().String())
+	*ctx, s = childSpan(tracer, *ctx, operationName, fields...)
 	return s
 }
 
-func followSpan(
+func childSpan(
 	tracer trace.Tracer,
-	related trace.SpanContext,
-	ctx *context.Context,
+	ctx context.Context, //nolint:revive
 	operationName string,
 	fields ...attribute.KeyValue,
-) (s trace.Span) {
+) (context.Context, trace.Span) {
 	fields = append(fields, attribute.String("ydb-go-sdk", version))
-	*ctx, s = tracer.Start(
-		trace.ContextWithRemoteSpanContext(*ctx, related),
+	return tracer.Start(ctx,
 		operationName,
 		trace.WithAttributes(fields...),
 	)
-	return s
 }
 
 func nodeID(sessionID string) string {

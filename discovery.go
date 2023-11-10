@@ -5,13 +5,13 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-func Discovery(cfg *config) (t trace.Discovery) {
+func discovery(cfg *config) (t trace.Discovery) {
 	t.OnDiscover = func(info trace.DiscoveryDiscoverStartInfo) func(discovery trace.DiscoveryDiscoverDoneInfo) {
 		if cfg.detailer.Details()&trace.DiscoveryEvents != 0 {
-			start := startSpan(
+			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
-				"ydb_discovery",
+				info.Call.FunctionID(),
 				attribute.String("address", info.Address),
 				attribute.String("database", info.Database),
 			)

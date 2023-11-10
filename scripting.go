@@ -3,17 +3,18 @@ package ydb
 import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 )
 
-func Scripting(cfg *config) (t trace.Scripting) {
+func scripting(cfg *config) (t trace.Scripting) {
 	t.OnExecute = func(info trace.ScriptingExecuteStartInfo) func(trace.ScriptingExecuteDoneInfo) {
 		if cfg.detailer.Details()&trace.ScriptingEvents != 0 {
-			start := startSpan(
+			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
-				"ydb_scripting_execute",
+				info.Call.FunctionID(),
 				attribute.String("query", info.Query),
 				attribute.String("params", safe.Stringer(info.Parameters)),
 			)
@@ -41,10 +42,10 @@ func Scripting(cfg *config) (t trace.Scripting) {
 		trace.ScriptingStreamExecuteDoneInfo,
 	) {
 		if cfg.detailer.Details()&trace.ScriptingEvents != 0 {
-			start := startSpan(
+			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
-				"ydb_scripting_stream_execute",
+				info.Call.FunctionID(),
 				attribute.String("query", info.Query),
 				attribute.String("params", safe.Stringer(info.Parameters)),
 			)
@@ -53,9 +54,15 @@ func Scripting(cfg *config) (t trace.Scripting) {
 			) func(
 				trace.ScriptingStreamExecuteDoneInfo,
 			) {
-				intermediate(start, info.Error)
+				if info.Error != nil {
+					start.RecordError(info.Error)
+				}
 				return func(info trace.ScriptingStreamExecuteDoneInfo) {
-					finish(start, info.Error)
+					if info.Error != nil {
+						start.RecordError(info.Error)
+						start.SetStatus(codes.Error, info.Error.Error())
+					}
+					start.End()
 				}
 			}
 		}
@@ -63,10 +70,10 @@ func Scripting(cfg *config) (t trace.Scripting) {
 	}
 	t.OnExplain = func(info trace.ScriptingExplainStartInfo) func(trace.ScriptingExplainDoneInfo) {
 		if cfg.detailer.Details()&trace.ScriptingEvents != 0 {
-			start := startSpan(
+			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
-				"ydb_scripting_explain",
+				info.Call.FunctionID(),
 				attribute.String("query", info.Query),
 			)
 			return func(info trace.ScriptingExplainDoneInfo) {
@@ -77,10 +84,10 @@ func Scripting(cfg *config) (t trace.Scripting) {
 	}
 	t.OnClose = func(info trace.ScriptingCloseStartInfo) func(trace.ScriptingCloseDoneInfo) {
 		if cfg.detailer.Details()&trace.ScriptingEvents != 0 {
-			start := startSpan(
+			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
-				"ydb_scripting_close",
+				info.Call.FunctionID(),
 			)
 			return func(info trace.ScriptingCloseDoneInfo) {
 				finish(start, info.Error)

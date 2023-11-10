@@ -128,7 +128,7 @@ linters:
   enable:
 #    - cyclop
     - deadcode
-    - depguard
+#    - depguard
     - dogsled
 #    - dupl
     - errcheck
@@ -154,7 +154,6 @@ linters:
     - gosec
     - gosimple
     - govet
-    - depguard
 #    - ifshort
 #    - ireturn
     - lll

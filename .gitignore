@@ -1,2 +1,6 @@
 .idea
-configs/elasticsearch_data
+/internal/cmd/database/sql/ydb_certs/
+/internal/cmd/database/sql/ydb_data/
+/internal/cmd/native/
+/internal/cmd/native/ydb_certs/
+/internal/cmd/native/ydb_data/

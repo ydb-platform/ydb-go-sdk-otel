@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
-	"path"
 	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
-	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
@@ -51,7 +50,7 @@ func selectDefault(ctx context.Context, db *sql.DB) (err error) {
 				)
 			}
 			return rows.Err()
-		}, retry.WithDoRetryOptions(retry.WithIdempotent(true)),
+		}, retry.WithIdempotent(true), retry.WithLabel("selectDefault"),
 	)
 	if err != nil {
 		return fmt.Errorf("execute data query failed: %w", err)
@@ -141,7 +140,102 @@ func selectScan(ctx context.Context, db *sql.DB) (err error) {
 				)
 			}
 			return rows.Err()
-		}, retry.WithDoRetryOptions(retry.WithIdempotent(true)),
+		}, retry.WithIdempotent(true), retry.WithLabel("selectScan"),
+	)
+	if err != nil {
+		return fmt.Errorf("scan query failed: %w", err)
+	}
+	return nil
+}
+
+func selectTx(ctx context.Context, db *sql.DB) (err error) {
+	err = retry.DoTx(ctx, db,
+		func(ctx context.Context, tx *sql.Tx) (err error) {
+			var (
+				id        string
+				seriesIDs []types.Value
+				seasonIDs []types.Value
+			)
+			// getting series ID's
+			row := tx.QueryRowContext(ctx, `
+				SELECT 			series_id 		
+				FROM 			series
+				WHERE 			title LIKE $seriesTitle;`,
+				sql.Named("seriesTitle", "%IT Crowd%"),
+			)
+			if err = row.Scan(&id); err != nil {
+				return err
+			}
+			seriesIDs = append(seriesIDs, types.BytesValueFromString(id))
+			if err = row.Err(); err != nil {
+				return err
+			}
+
+			// getting season ID's
+			stmt, err := tx.PrepareContext(ctx, `
+				SELECT 			season_id 		
+				FROM 			seasons
+				WHERE 			title LIKE $seasonTitle;`,
+			)
+			if err != nil {
+				return err
+			}
+			rows, err := stmt.QueryContext(ctx,
+				sql.Named("seasonTitle", "%Season 1%"),
+			)
+			if err != nil {
+				return err
+			}
+			for rows.Next() {
+				if err = rows.Scan(&id); err != nil {
+					return err
+				}
+				seasonIDs = append(seasonIDs, types.BytesValueFromString(id))
+			}
+			if err = rows.Err(); err != nil {
+				return err
+			}
+			_ = rows.Close()
+
+			// getting final query result
+			params := table.NewQueryParameters(
+				table.ValueParam("seriesIDs", types.ListValue(seriesIDs...)),
+				table.ValueParam("seasonIDs", types.ListValue(seasonIDs...)),
+				table.ValueParam("from", types.DateValueFromTime(date("2006-01-01"))),
+				table.ValueParam("to", types.DateValueFromTime(date("2006-12-31"))),
+			)
+			rows, err = tx.QueryContext(ctx, `
+				SELECT 
+					episode_id, title, air_date FROM episodes
+				WHERE 	
+					series_id IN $seriesIDs 
+					AND season_id IN $seasonIDs 
+					AND air_date BETWEEN $from AND $to;`,
+				params,
+			)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				_ = rows.Close()
+			}()
+			var (
+				episodeID  string
+				title      string
+				firstAired time.Time
+			)
+			log.Println("> scan select of episodes of `Season 1` of `IT Crowd` between 2006-01-01 and 2006-12-31:")
+			for rows.Next() {
+				if err = rows.Scan(&episodeID, &title, &firstAired); err != nil {
+					return err
+				}
+				log.Printf(
+					"> [%s] %s (%s)",
+					episodeID, title, firstAired.Format("2006-01-02"),
+				)
+			}
+			return rows.Err()
+		}, retry.WithIdempotent(true), retry.WithLabel("selectTx"),
 	)
 	if err != nil {
 		return fmt.Errorf("scan query failed: %w", err)
@@ -189,34 +283,44 @@ func fillTablesWithData(ctx context.Context, db *sql.DB) (err error) {
 			return err
 		}
 		return nil
-	}, retry.WithDoTxRetryOptions(retry.WithIdempotent(true)))
+	}, retry.WithIdempotent(true), retry.WithLabel("fillTablesWithData"))
 	if err != nil {
 		return fmt.Errorf("upsert query failed: %w", err)
 	}
 	return nil
 }
 
-//nolint:nestif
-func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
+func prepareSchema(ctx context.Context, db *sql.DB) (err error) {
 	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) (err error) {
-		if c, err := ydb.Unwrap(cc); err != nil { //nolint:govet
+		exists := true
+		err = cc.Raw(func(drvConn interface{}) (err error) {
+			q, ok := drvConn.(interface {
+				IsTableExists(context.Context, string) (bool, error)
+			})
+
+			if !ok {
+				return errors.New("drvConn does not implement extended API")
+			}
+
+			exists, err = q.IsTableExists(ctx, "series")
 			return err
-		} else { //nolint:revive
-			if exists, err := sugar.IsTableExists(ctx, c.Scheme(), path.Join(prefix, "series")); err != nil {
+		})
+		if err != nil {
+			return err
+		}
+
+		if exists {
+			_, err = cc.ExecContext(
+				ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
+				"DROP TABLE series")
+			if err != nil {
 				return err
-			} else if exists {
-				_, err = cc.ExecContext(
-					ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
-					fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "series")),
-				)
-				if err != nil {
-					return err
-				}
 			}
 		}
+
 		_, err = cc.ExecContext(
 			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode), `
-			CREATE TABLE `+"`"+path.Join(prefix, "series")+"`"+` (
+			CREATE TABLE series (
 				series_id Bytes,
 				title Utf8,
 				series_info Utf8,
@@ -234,29 +338,41 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 			return err
 		}
 		return nil
-	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	}, retry.WithIdempotent(true), retry.WithLabel("prepareSchema(series)"))
 	if err != nil {
 		return fmt.Errorf("create table failed: %w", err)
 	}
+
 	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) (err error) {
-		if c, err := ydb.Unwrap(cc); err != nil { //nolint:govet
+		exists := true
+		err = cc.Raw(func(drvConn interface{}) (err error) {
+			q, ok := drvConn.(interface {
+				IsTableExists(context.Context, string) (bool, error)
+			})
+
+			if !ok {
+				return errors.New("drvConn does not implement extended API")
+			}
+
+			exists, err = q.IsTableExists(ctx, "seasons")
 			return err
-		} else { //nolint:revive
-			if exists, err := sugar.IsTableExists(ctx, c.Scheme(), path.Join(prefix, "seasons")); err != nil {
+		})
+		if err != nil {
+			return err
+		}
+
+		if exists {
+			_, err = cc.ExecContext(
+				ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
+				"DROP TABLE seasons")
+			if err != nil {
 				return err
-			} else if exists {
-				_, err = cc.ExecContext(
-					ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
-					fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "seasons")),
-				)
-				if err != nil {
-					return err
-				}
 			}
 		}
+
 		_, err = cc.ExecContext(
 			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode), `
-			CREATE TABLE `+"`"+path.Join(prefix, "seasons")+"`"+` (
+			CREATE TABLE seasons (
 				series_id Bytes,
 				season_id Bytes,
 				title Utf8,
@@ -276,30 +392,43 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 		if err != nil {
 			return err
 		}
+
 		return nil
-	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	}, retry.WithIdempotent(true), retry.WithLabel("prepareSchema(seasons)"))
 	if err != nil {
 		return fmt.Errorf("create table failed: %w", err)
 	}
+
 	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) (err error) {
-		if c, err := ydb.Unwrap(cc); err != nil { //nolint:govet
+		exists := true
+		err = cc.Raw(func(drvConn interface{}) (err error) {
+			q, ok := drvConn.(interface {
+				IsTableExists(context.Context, string) (bool, error)
+			})
+
+			if !ok {
+				return errors.New("drvConn does not implement extended API")
+			}
+
+			exists, err = q.IsTableExists(ctx, "episodes")
 			return err
-		} else { //nolint:revive
-			if exists, err := sugar.IsTableExists(ctx, c.Scheme(), path.Join(prefix, "episodes")); err != nil {
+		})
+		if err != nil {
+			return err
+		}
+
+		if exists {
+			_, err = cc.ExecContext(
+				ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
+				"DROP TABLE episodes")
+			if err != nil {
 				return err
-			} else if exists {
-				_, err = cc.ExecContext(
-					ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
-					fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "episodes")),
-				)
-				if err != nil {
-					return err
-				}
 			}
 		}
+
 		_, err = cc.ExecContext(
 			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode), `
-			CREATE TABLE `+"`"+path.Join(prefix, "episodes")+"`"+` (
+			CREATE TABLE episodes (
 				series_id Bytes,
 				season_id Bytes,
 				episode_id Bytes,
@@ -319,8 +448,9 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 		if err != nil {
 			return err
 		}
+
 		return nil
-	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	}, retry.WithIdempotent(true), retry.WithLabel("prepareSchema(episodes)"))
 	if err != nil {
 		return fmt.Errorf("create table failed: %w", err)
 	}
