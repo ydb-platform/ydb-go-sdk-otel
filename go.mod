@@ -5,11 +5,11 @@ go 1.18
 require (
 	github.com/google/uuid v1.3.1
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.54.2
-	go.opentelemetry.io/otel v1.17.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.17.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.17.0
-	go.opentelemetry.io/otel/sdk v1.17.0
-	go.opentelemetry.io/otel/trace v1.17.0
+	go.opentelemetry.io/otel v1.16.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.16.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.16.0
+	go.opentelemetry.io/otel/sdk v1.16.0
+	go.opentelemetry.io/otel/trace v1.16.0
 )
 
 require (
@@ -21,7 +21,8 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
 	github.com/jonboulle/clockwork v0.3.0 // indirect
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20231012155159-f85a672542fd // indirect
-	go.opentelemetry.io/otel/metric v1.17.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.16.0 // indirect
+	go.opentelemetry.io/otel/metric v1.16.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
