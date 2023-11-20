@@ -20,8 +20,14 @@ func driver(cfg *config) (t trace.Driver) {
 	withTraceID := func(ctx context.Context) context.Context {
 		spanCtx := otelTrace.SpanContextFromContext(ctx)
 		if spanCtx.HasTraceID() {
-			traceID := spanCtx.TraceID()
-			return meta.WithTraceID(ctx, traceID.String())
+			flags := spanCtx.TraceFlags() & otelTrace.FlagsSampled
+			traceParent := fmt.Sprintf("%.2x-%s-%s-%s",
+				0,
+				spanCtx.TraceID(),
+				spanCtx.SpanID(),
+				flags,
+			)
+			return meta.WithTraceID(ctx, traceParent)
 		}
 		return ctx
 	}
