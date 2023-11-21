@@ -6,30 +6,37 @@ import (
 	"fmt"
 	"hash/crc32"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/meta"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
 	otelTrace "go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 )
 
+type metadataCarrier metadata.MD
+
+func (m metadataCarrier) Get(key string) string {
+	panic("metadataCarrier is not for getting internal data")
+}
+
+func (m metadataCarrier) Set(key string, value string) {
+	m[key] = append(m[key], value)
+}
+
+func (m metadataCarrier) Keys() []string {
+	panic("metadataCarrier is not for getting internal data")
+}
+
 // driver makes driver with publishing traces
 func driver(cfg *config) (t trace.Driver) {
+	propagator := propagation.TraceContext{}
 	withTraceID := func(ctx context.Context) context.Context {
-		spanCtx := otelTrace.SpanContextFromContext(ctx)
-		if spanCtx.HasTraceID() {
-			flags := spanCtx.TraceFlags() & otelTrace.FlagsSampled
-			traceParent := fmt.Sprintf("%.2x-%s-%s-%s",
-				0,
-				spanCtx.TraceID(),
-				spanCtx.SpanID(),
-				flags,
-			)
-			return meta.WithTraceID(ctx, traceParent)
-		}
-		return ctx
+		md, _ := metadata.FromOutgoingContext(ctx)
+		propagator.Inject(ctx, metadataCarrier(md))
+		return metadata.NewOutgoingContext(ctx, md)
 	}
 	t.OnRepeaterWakeUp = func(info trace.DriverRepeaterWakeUpStartInfo) func(trace.DriverRepeaterWakeUpDoneInfo) {
 		if cfg.detailer.Details()&trace.DriverRepeaterEvents != 0 {
