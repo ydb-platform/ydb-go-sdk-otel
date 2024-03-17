@@ -2,6 +2,7 @@ package ydb
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
@@ -12,6 +13,14 @@ import (
 
 // table makes table.ClientTrace with solomon metrics publishing
 func table(cfg *config) (t trace.Table) { //nolint:gocyclo
+	nodeID := func(sessionID string) string {
+		u, err := url.Parse(sessionID)
+		if err != nil {
+			return ""
+		}
+
+		return u.Query().Get("node_id")
+	}
 	t.OnCreateSession = func(
 		info trace.TableCreateSessionStartInfo,
 	) func(

@@ -31,15 +31,18 @@ func (m metadataCarrier) Keys() []string {
 }
 
 // driver makes driver with publishing traces
-func driver(cfg *config) (t trace.Driver) {
+func driver(cfg *config) trace.Driver {
 	propagator := propagation.TraceContext{}
 	withTraceID := func(ctx context.Context) context.Context {
 		md, _ := metadata.FromOutgoingContext(ctx)
 		propagator.Inject(ctx, metadataCarrier(md))
 		return metadata.NewOutgoingContext(ctx, md)
 	}
-	t.OnRepeaterWakeUp = func(info trace.DriverRepeaterWakeUpStartInfo) func(trace.DriverRepeaterWakeUpDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverRepeaterEvents != 0 {
+	return trace.Driver{
+		OnRepeaterWakeUp: func(info trace.DriverRepeaterWakeUpStartInfo) func(trace.DriverRepeaterWakeUpDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverRepeaterEvents == 0 {
+				return nil
+			}
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -51,11 +54,11 @@ func driver(cfg *config) (t trace.Driver) {
 					info.Error,
 				)
 			}
-		}
-		return nil
-	}
-	t.OnConnDial = func(info trace.DriverConnDialStartInfo) func(trace.DriverConnDialDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
+		},
+		OnConnDial: func(info trace.DriverConnDialStartInfo) func(trace.DriverConnDialDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+				return nil
+			}
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -67,12 +70,12 @@ func driver(cfg *config) (t trace.Driver) {
 					info.Error,
 				)
 			}
-		}
-		return nil
-	}
-	t.OnConnInvoke = func(info trace.DriverConnInvokeStartInfo) func(trace.DriverConnInvokeDoneInfo) {
-		*info.Context = withTraceID(*info.Context)
-		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
+		},
+		OnConnInvoke: func(info trace.DriverConnInvokeStartInfo) func(trace.DriverConnInvokeDoneInfo) {
+			*info.Context = withTraceID(*info.Context)
+			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+				return nil
+			}
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -97,18 +100,12 @@ func driver(cfg *config) (t trace.Driver) {
 					attribute.String("state", safe.Stringer(info.State)),
 				)
 			}
-		}
-		return nil
-	}
-	t.OnConnNewStream = func(
-		info trace.DriverConnNewStreamStartInfo,
-	) func(
-		trace.DriverConnNewStreamRecvInfo,
-	) func(
-		trace.DriverConnNewStreamDoneInfo,
-	) {
-		*info.Context = withTraceID(*info.Context)
-		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
+		},
+		OnConnNewStream: func(info trace.DriverConnNewStreamStartInfo) func(trace.DriverConnNewStreamDoneInfo) {
+			*info.Context = withTraceID(*info.Context)
+			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+				return nil
+			}
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -116,21 +113,60 @@ func driver(cfg *config) (t trace.Driver) {
 				attribute.String("address", safe.Address(info.Endpoint)),
 				attribute.String("method", string(info.Method)),
 			)
-			return func(info trace.DriverConnNewStreamRecvInfo) func(trace.DriverConnNewStreamDoneInfo) {
-				if info.Error != nil {
-					start.RecordError(info.Error)
-				}
-				return func(info trace.DriverConnNewStreamDoneInfo) {
-					finish(start, info.Error,
-						attribute.String("state", safe.Stringer(info.State)),
-					)
-				}
+			return func(info trace.DriverConnNewStreamDoneInfo) {
+				finish(start, info.Error,
+					attribute.String("state", safe.Stringer(info.State)),
+				)
 			}
-		}
-		return nil
-	}
-	t.OnConnPark = func(info trace.DriverConnParkStartInfo) func(trace.DriverConnParkDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
+		},
+		OnConnStreamRecvMsg: func(info trace.DriverConnStreamRecvMsgStartInfo) func(trace.DriverConnStreamRecvMsgDoneInfo) {
+			*info.Context = withTraceID(*info.Context)
+			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+			return func(info trace.DriverConnStreamRecvMsgDoneInfo) {
+				finish(start, info.Error)
+			}
+		},
+		OnConnStreamSendMsg: func(info trace.DriverConnStreamSendMsgStartInfo) func(trace.DriverConnStreamSendMsgDoneInfo) {
+			*info.Context = withTraceID(*info.Context)
+			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+			return func(info trace.DriverConnStreamSendMsgDoneInfo) {
+				finish(start, info.Error)
+			}
+		},
+		OnConnStreamCloseSend: func(info trace.DriverConnStreamCloseSendStartInfo) func(
+			trace.DriverConnStreamCloseSendDoneInfo,
+		) {
+			*info.Context = withTraceID(*info.Context)
+			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+			return func(info trace.DriverConnStreamCloseSendDoneInfo) {
+				finish(start, info.Error)
+			}
+		},
+		OnConnPark: func(info trace.DriverConnParkStartInfo) func(trace.DriverConnParkDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+				return nil
+			}
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -143,11 +179,11 @@ func driver(cfg *config) (t trace.Driver) {
 					info.Error,
 				)
 			}
-		}
-		return nil
-	}
-	t.OnConnClose = func(info trace.DriverConnCloseStartInfo) func(trace.DriverConnCloseDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
+		},
+		OnConnClose: func(info trace.DriverConnCloseStartInfo) func(trace.DriverConnCloseDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+				return nil
+			}
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -160,11 +196,11 @@ func driver(cfg *config) (t trace.Driver) {
 					info.Error,
 				)
 			}
-		}
-		return nil
-	}
-	t.OnConnBan = func(info trace.DriverConnBanStartInfo) func(trace.DriverConnBanDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
+		},
+		OnConnBan: func(info trace.DriverConnBanStartInfo) func(trace.DriverConnBanDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+				return nil
+			}
 			s := otelTrace.SpanFromContext(*info.Context)
 			s.AddEvent(info.Call.FunctionID(),
 				otelTrace.WithAttributes(
@@ -172,11 +208,11 @@ func driver(cfg *config) (t trace.Driver) {
 				),
 			)
 			return nil
-		}
-		return nil
-	}
-	t.OnConnStateChange = func(info trace.DriverConnStateChangeStartInfo) func(trace.DriverConnStateChangeDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
+		},
+		OnConnStateChange: func(info trace.DriverConnStateChangeStartInfo) func(trace.DriverConnStateChangeDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+				return nil
+			}
 			s := otelTrace.SpanFromContext(*info.Context)
 			oldState := safe.Stringer(info.State)
 			functionID := info.Call.FunctionID()
@@ -186,19 +222,19 @@ func driver(cfg *config) (t trace.Driver) {
 					attribute.String("new state", safe.Stringer(info.State)),
 				))
 			}
-		}
-		return nil
-	}
-	t.OnConnAllow = func(info trace.DriverConnAllowStartInfo) func(trace.DriverConnAllowDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverConnEvents != 0 {
+		},
+		OnConnAllow: func(info trace.DriverConnAllowStartInfo) func(trace.DriverConnAllowDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+				return nil
+			}
 			s := otelTrace.SpanFromContext(*info.Context)
 			s.AddEvent(info.Call.FunctionID())
 			return nil
-		}
-		return nil
-	}
-	t.OnBalancerInit = func(info trace.DriverBalancerInitStartInfo) func(trace.DriverBalancerInitDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverBalancerEvents != 0 {
+		},
+		OnBalancerInit: func(info trace.DriverBalancerInitStartInfo) func(trace.DriverBalancerInitDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverBalancerEvents == 0 {
+				return nil
+			}
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -208,13 +244,13 @@ func driver(cfg *config) (t trace.Driver) {
 			return func(info trace.DriverBalancerInitDoneInfo) {
 				finish(start, info.Error)
 			}
-		}
-		return nil
-	}
-	t.OnBalancerClusterDiscoveryAttempt = func(info trace.DriverBalancerClusterDiscoveryAttemptStartInfo) func(
-		trace.DriverBalancerClusterDiscoveryAttemptDoneInfo,
-	) {
-		if cfg.detailer.Details()&trace.DriverBalancerEvents != 0 {
+		},
+		OnBalancerClusterDiscoveryAttempt: func(info trace.DriverBalancerClusterDiscoveryAttemptStartInfo) func(
+			trace.DriverBalancerClusterDiscoveryAttemptDoneInfo,
+		) {
+			if cfg.detailer.Details()&trace.DriverBalancerEvents == 0 {
+				return nil
+			}
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -223,11 +259,11 @@ func driver(cfg *config) (t trace.Driver) {
 			return func(info trace.DriverBalancerClusterDiscoveryAttemptDoneInfo) {
 				finish(start, info.Error)
 			}
-		}
-		return nil
-	}
-	t.OnBalancerUpdate = func(info trace.DriverBalancerUpdateStartInfo) func(trace.DriverBalancerUpdateDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverBalancerEvents != 0 {
+		},
+		OnBalancerUpdate: func(info trace.DriverBalancerUpdateStartInfo) func(trace.DriverBalancerUpdateDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverBalancerEvents == 0 {
+				return nil
+			}
 			s := otelTrace.SpanFromContext(*info.Context)
 			s.SetAttributes(
 				attribute.Bool("need_local_dc", info.NeedLocalDC),
@@ -254,15 +290,15 @@ func driver(cfg *config) (t trace.Driver) {
 					attribute.StringSlice("dropped", dropped),
 				)
 			}
-		}
-		return nil
-	}
-	t.OnBalancerChooseEndpoint = func(
-		info trace.DriverBalancerChooseEndpointStartInfo,
-	) func(
-		trace.DriverBalancerChooseEndpointDoneInfo,
-	) {
-		if cfg.detailer.Details()&trace.DriverBalancerEvents != 0 {
+		},
+		OnBalancerChooseEndpoint: func(
+			info trace.DriverBalancerChooseEndpointStartInfo,
+		) func(
+			trace.DriverBalancerChooseEndpointDoneInfo,
+		) {
+			if cfg.detailer.Details()&trace.DriverBalancerEvents == 0 {
+				return nil
+			}
 			parent := otelTrace.SpanFromContext(*info.Context)
 			functionID := info.Call.FunctionID()
 			return func(info trace.DriverBalancerChooseEndpointDoneInfo) {
@@ -279,11 +315,11 @@ func driver(cfg *config) (t trace.Driver) {
 					)
 				}
 			}
-		}
-		return nil
-	}
-	t.OnGetCredentials = func(info trace.DriverGetCredentialsStartInfo) func(trace.DriverGetCredentialsDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverCredentialsEvents != 0 { //nolint:nestif
+		},
+		OnGetCredentials: func(info trace.DriverGetCredentialsStartInfo) func(trace.DriverGetCredentialsDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverCredentialsEvents == 0 {
+				return nil
+			}
 			parent := otelTrace.SpanFromContext(*info.Context)
 			functionID := info.Call.FunctionID()
 			return func(info trace.DriverGetCredentialsDoneInfo) {
@@ -308,11 +344,11 @@ func driver(cfg *config) (t trace.Driver) {
 					)
 				}
 			}
-		}
-		return nil
-	}
-	t.OnInit = func(info trace.DriverInitStartInfo) func(trace.DriverInitDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverEvents != 0 {
+		},
+		OnInit: func(info trace.DriverInitStartInfo) func(trace.DriverInitDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverEvents == 0 {
+				return nil
+			}
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -324,11 +360,11 @@ func driver(cfg *config) (t trace.Driver) {
 			return func(info trace.DriverInitDoneInfo) {
 				finish(start, info.Error)
 			}
-		}
-		return nil
-	}
-	t.OnClose = func(info trace.DriverCloseStartInfo) func(trace.DriverCloseDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverEvents != 0 {
+		},
+		OnClose: func(info trace.DriverCloseStartInfo) func(trace.DriverCloseDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverEvents == 0 {
+				return nil
+			}
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -337,11 +373,11 @@ func driver(cfg *config) (t trace.Driver) {
 			return func(info trace.DriverCloseDoneInfo) {
 				finish(start, info.Error)
 			}
-		}
-		return nil
-	}
-	t.OnPoolNew = func(info trace.DriverConnPoolNewStartInfo) func(trace.DriverConnPoolNewDoneInfo) {
-		if cfg.detailer.Details()&trace.DriverEvents != 0 {
+		},
+		OnPoolNew: func(info trace.DriverConnPoolNewStartInfo) func(trace.DriverConnPoolNewDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverEvents == 0 {
+				return nil
+			}
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -350,18 +386,19 @@ func driver(cfg *config) (t trace.Driver) {
 			return func(info trace.DriverConnPoolNewDoneInfo) {
 				start.End()
 			}
-		}
-		return nil
+		},
+		OnPoolRelease: func(info trace.DriverConnPoolReleaseStartInfo) func(trace.DriverConnPoolReleaseDoneInfo) {
+			if cfg.detailer.Details()&trace.DriverEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+			return func(info trace.DriverConnPoolReleaseDoneInfo) {
+				finish(start, info.Error)
+			}
+		},
 	}
-	t.OnPoolRelease = func(info trace.DriverConnPoolReleaseStartInfo) func(trace.DriverConnPoolReleaseDoneInfo) {
-		start := childSpanWithReplaceCtx(
-			cfg.tracer,
-			info.Context,
-			info.Call.FunctionID(),
-		)
-		return func(info trace.DriverConnPoolReleaseDoneInfo) {
-			finish(start, info.Error)
-		}
-	}
-	return t
 }
