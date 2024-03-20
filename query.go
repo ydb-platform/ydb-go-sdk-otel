@@ -84,7 +84,7 @@ func query(cfg *config) trace.Query {
 				)
 			}
 		},
-		OnPoolProduce: func(info trace.QueryPoolProduceStartInfo) func(trace.QueryPoolProduceDoneInfo) {
+		OnPoolProduce: func(info trace.QueryPoolSpawnStartInfo) func(trace.QueryPoolSpawnDoneInfo) {
 			if cfg.detailer.Details()&trace.QueryPoolEvents == 0 {
 				return nil
 			}
@@ -94,7 +94,7 @@ func query(cfg *config) trace.Query {
 				info.Call.FunctionID(),
 				attribute.Int("Concurrency", info.Concurrency),
 			)
-			return func(info trace.QueryPoolProduceDoneInfo) {
+			return func(info trace.QueryPoolSpawnDoneInfo) {
 				start.End()
 			}
 		},
@@ -294,6 +294,160 @@ func query(cfg *config) trace.Query {
 			)
 
 			return func(info trace.QuerySessionExecuteDoneInfo) {
+				finish(
+					start,
+					info.Error,
+				)
+			}
+		},
+		OnSessionBegin: func(info trace.QuerySessionBeginStartInfo) func(info trace.QuerySessionBeginDoneInfo) {
+			if cfg.detailer.Details()&trace.QuerySessionEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+
+			return func(info trace.QuerySessionBeginDoneInfo) {
+				finish(
+					start,
+					info.Error,
+					attribute.String("TransactionID", safe.ID(info.Tx)),
+				)
+			}
+		},
+		OnResultNew: func(info trace.QueryResultNewStartInfo) func(info trace.QueryResultNewDoneInfo) {
+			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+
+			return func(info trace.QueryResultNewDoneInfo) {
+				finish(
+					start,
+					info.Error,
+				)
+			}
+		},
+		OnResultNextPart: func(info trace.QueryResultNextPartStartInfo) func(info trace.QueryResultNextPartDoneInfo) {
+			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+
+			return func(info trace.QueryResultNextPartDoneInfo) {
+				finish(
+					start,
+					info.Error,
+				)
+			}
+		},
+		OnResultNextResultSet: func(info trace.QueryResultNextResultSetStartInfo) func(info trace.QueryResultNextResultSetDoneInfo) {
+			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+
+			return func(info trace.QueryResultNextResultSetDoneInfo) {
+				finish(
+					start,
+					info.Error,
+				)
+			}
+		},
+		OnResultClose: func(info trace.QueryResultCloseStartInfo) func(info trace.QueryResultCloseDoneInfo) {
+			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+
+			return func(info trace.QueryResultCloseDoneInfo) {
+				finish(
+					start,
+					info.Error,
+				)
+			}
+		},
+		OnResultSetNextRow: func(info trace.QueryResultSetNextRowStartInfo) func(info trace.QueryResultSetNextRowDoneInfo) {
+			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+
+			return func(info trace.QueryResultSetNextRowDoneInfo) {
+				finish(
+					start,
+					info.Error,
+				)
+			}
+		},
+		OnRowScan: func(info trace.QueryRowScanStartInfo) func(info trace.QueryRowScanDoneInfo) {
+			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+
+			return func(info trace.QueryRowScanDoneInfo) {
+				finish(
+					start,
+					info.Error,
+				)
+			}
+		},
+		OnRowScanNamed: func(info trace.QueryRowScanNamedStartInfo) func(info trace.QueryRowScanNamedDoneInfo) {
+			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+
+			return func(info trace.QueryRowScanNamedDoneInfo) {
+				finish(
+					start,
+					info.Error,
+				)
+			}
+		},
+		OnRowScanStruct: func(info trace.QueryRowScanStructStartInfo) func(info trace.QueryRowScanStructDoneInfo) {
+			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
+				return nil
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				info.Context,
+				info.Call.FunctionID(),
+			)
+
+			return func(info trace.QueryRowScanStructDoneInfo) {
 				finish(
 					start,
 					info.Error,
