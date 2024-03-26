@@ -57,7 +57,7 @@ func fieldsFromStore(ctx context.Context) []attribute.KeyValue {
 }
 
 func retry(cfg *config) (t trace.Retry) {
-	t.OnRetry = func(info trace.RetryLoopStartInfo) func(trace.RetryLoopIntermediateInfo) func(trace.RetryLoopDoneInfo) {
+	t.OnRetry = func(info trace.RetryLoopStartInfo) func(trace.RetryLoopDoneInfo) {
 		if cfg.detailer.Details()&trace.RetryEvents != 0 && isTraceRetry(*info.Context) { //nolint:nestif
 			operationName := info.Label
 			if operationName == "" {
@@ -76,24 +76,19 @@ func retry(cfg *config) (t trace.Retry) {
 				start.RecordError(fmt.Errorf("nested call"))
 			}
 			ctx := *info.Context
-			return func(info trace.RetryLoopIntermediateInfo) func(trace.RetryLoopDoneInfo) {
+			return func(info trace.RetryLoopDoneInfo) {
+				start.SetAttributes(
+					attribute.Int("attempts", info.Attempts),
+					attribute.Bool(errorAttribute, info.Error != nil),
+				)
+				if fields := fieldsFromStore(ctx); len(fields) > 0 {
+					start.SetAttributes(fields...)
+				}
 				if info.Error != nil {
 					start.RecordError(info.Error)
+					start.SetStatus(codes.Error, info.Error.Error())
 				}
-				return func(info trace.RetryLoopDoneInfo) {
-					start.SetAttributes(
-						attribute.Int("attempts", info.Attempts),
-						attribute.Bool(errorAttribute, info.Error != nil),
-					)
-					if fields := fieldsFromStore(ctx); len(fields) > 0 {
-						start.SetAttributes(fields...)
-					}
-					if info.Error != nil {
-						start.RecordError(info.Error)
-						start.SetStatus(codes.Error, info.Error.Error())
-					}
-					start.End()
-				}
+				start.End()
 			}
 		}
 		return nil

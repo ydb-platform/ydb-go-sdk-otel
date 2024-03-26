@@ -2,11 +2,9 @@ module github.com/ydb-platform/ydb-go-sdk-otel
 
 go 1.21
 
-toolchain go1.21.1
-
 require (
 	github.com/google/uuid v1.5.0
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.58.0
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.60.1
 	go.opentelemetry.io/otel v1.21.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.21.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.21.0
