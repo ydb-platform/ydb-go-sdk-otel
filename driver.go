@@ -163,23 +163,6 @@ func driver(cfg *config) trace.Driver {
 				finish(start, info.Error)
 			}
 		},
-		OnConnPark: func(info trace.DriverConnParkStartInfo) func(trace.DriverConnParkDoneInfo) {
-			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
-				return nil
-			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-				attribute.String("address", safe.Address(info.Endpoint)),
-			)
-			return func(info trace.DriverConnParkDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
-			}
-		},
 		OnConnClose: func(info trace.DriverConnCloseStartInfo) func(trace.DriverConnCloseDoneInfo) {
 			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
 				return nil

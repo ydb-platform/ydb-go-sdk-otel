@@ -21,37 +21,23 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 
 		return u.Query().Get("node_id")
 	}
-	t.OnCreateSession = func(
-		info trace.TableCreateSessionStartInfo,
-	) func(
-		info trace.TableCreateSessionIntermediateInfo,
-	) func(
-		trace.TableCreateSessionDoneInfo,
-	) {
+	t.OnCreateSession = func(info trace.TableCreateSessionStartInfo) func(trace.TableCreateSessionDoneInfo) {
 		if cfg.detailer.Details()&trace.TableEvents != 0 {
 			fieldsStore := fieldsStoreFromContext(info.Context)
 			*info.Context = withFunctionID(*info.Context, info.Call.FunctionID())
-			return func(info trace.TableCreateSessionIntermediateInfo) func(trace.TableCreateSessionDoneInfo) {
-				return func(info trace.TableCreateSessionDoneInfo) {
-					if info.Error == nil {
-						fieldsStore.fields = append(fieldsStore.fields,
-							attribute.String("session_id", safe.ID(info.Session)),
-							attribute.String("session_status", safe.Status(info.Session)),
-							attribute.String("node_id", nodeID(safe.ID(info.Session))),
-						)
-					}
+			return func(info trace.TableCreateSessionDoneInfo) {
+				if info.Error == nil {
+					fieldsStore.fields = append(fieldsStore.fields,
+						attribute.String("session_id", safe.ID(info.Session)),
+						attribute.String("session_status", safe.Status(info.Session)),
+						attribute.String("node_id", nodeID(safe.ID(info.Session))),
+					)
 				}
 			}
 		}
 		return nil
 	}
-	t.OnDo = func(
-		info trace.TableDoStartInfo,
-	) func(
-		info trace.TableDoIntermediateInfo,
-	) func(
-		trace.TableDoDoneInfo,
-	) {
+	t.OnDo = func(info trace.TableDoStartInfo) func(trace.TableDoDoneInfo) {
 		if cfg.detailer.Details()&trace.TableEvents != 0 {
 			*info.Context = noTraceRetry(*info.Context)
 			operationName := info.Label
@@ -67,31 +53,20 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 			if info.NestedCall {
 				start.RecordError(fmt.Errorf("nested call"))
 			}
-			return func(info trace.TableDoIntermediateInfo) func(trace.TableDoDoneInfo) {
+			return func(info trace.TableDoDoneInfo) {
+				start.SetAttributes(
+					attribute.Int("attempts", info.Attempts),
+				)
 				if info.Error != nil {
 					start.RecordError(info.Error)
+					start.SetStatus(codes.Error, info.Error.Error())
 				}
-				return func(info trace.TableDoDoneInfo) {
-					start.SetAttributes(
-						attribute.Int("attempts", info.Attempts),
-					)
-					if info.Error != nil {
-						start.RecordError(info.Error)
-						start.SetStatus(codes.Error, info.Error.Error())
-					}
-					start.End()
-				}
+				start.End()
 			}
 		}
 		return nil
 	}
-	t.OnDoTx = func(
-		info trace.TableDoTxStartInfo,
-	) func(
-		info trace.TableDoTxIntermediateInfo,
-	) func(
-		trace.TableDoTxDoneInfo,
-	) {
+	t.OnDoTx = func(info trace.TableDoTxStartInfo) func(trace.TableDoTxDoneInfo) {
 		if cfg.detailer.Details()&trace.TableEvents != 0 {
 			*info.Context = noTraceRetry(*info.Context)
 			operationName := info.Label
@@ -107,20 +82,15 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 			if info.NestedCall {
 				start.RecordError(fmt.Errorf("nested call"))
 			}
-			return func(info trace.TableDoTxIntermediateInfo) func(trace.TableDoTxDoneInfo) {
+			return func(info trace.TableDoTxDoneInfo) {
+				start.SetAttributes(
+					attribute.Int("attempts", info.Attempts),
+				)
 				if info.Error != nil {
 					start.RecordError(info.Error)
+					start.SetStatus(codes.Error, info.Error.Error())
 				}
-				return func(info trace.TableDoTxDoneInfo) {
-					start.SetAttributes(
-						attribute.Int("attempts", info.Attempts),
-					)
-					if info.Error != nil {
-						start.RecordError(info.Error)
-						start.SetStatus(codes.Error, info.Error.Error())
-					}
-					start.End()
-				}
+				start.End()
 			}
 		}
 		return nil
@@ -249,8 +219,6 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 	t.OnSessionQueryStreamExecute = func(
 		info trace.TableSessionQueryStreamExecuteStartInfo,
 	) func(
-		intermediateInfo trace.TableSessionQueryStreamExecuteIntermediateInfo,
-	) func(
 		trace.TableSessionQueryStreamExecuteDoneInfo,
 	) {
 		if cfg.detailer.Details()&trace.TableSessionQueryStreamEvents != 0 {
@@ -262,29 +230,18 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 				attribute.String("node_id", nodeID(safe.ID(info.Session))),
 				attribute.String("session_id", safe.ID(info.Session)),
 			)
-			return func(
-				info trace.TableSessionQueryStreamExecuteIntermediateInfo,
-			) func(
-				trace.TableSessionQueryStreamExecuteDoneInfo,
-			) {
+			return func(info trace.TableSessionQueryStreamExecuteDoneInfo) {
 				if info.Error != nil {
 					start.RecordError(info.Error)
+					start.SetStatus(codes.Error, info.Error.Error())
 				}
-				return func(info trace.TableSessionQueryStreamExecuteDoneInfo) {
-					if info.Error != nil {
-						start.RecordError(info.Error)
-						start.SetStatus(codes.Error, info.Error.Error())
-					}
-					start.End()
-				}
+				start.End()
 			}
 		}
 		return nil
 	}
 	t.OnSessionQueryStreamRead = func(
 		info trace.TableSessionQueryStreamReadStartInfo,
-	) func(
-		trace.TableSessionQueryStreamReadIntermediateInfo,
 	) func(
 		trace.TableSessionQueryStreamReadDoneInfo,
 	) {
@@ -296,30 +253,17 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 				attribute.String("node_id", nodeID(safe.ID(info.Session))),
 				attribute.String("session_id", safe.ID(info.Session)),
 			)
-			return func(
-				info trace.TableSessionQueryStreamReadIntermediateInfo,
-			) func(
-				trace.TableSessionQueryStreamReadDoneInfo,
-			) {
+			return func(info trace.TableSessionQueryStreamReadDoneInfo) {
 				if info.Error != nil {
 					start.RecordError(info.Error)
+					start.SetStatus(codes.Error, info.Error.Error())
 				}
-				return func(info trace.TableSessionQueryStreamReadDoneInfo) {
-					if info.Error != nil {
-						start.RecordError(info.Error)
-						start.SetStatus(codes.Error, info.Error.Error())
-					}
-					start.End()
-				}
+				start.End()
 			}
 		}
 		return nil
 	}
-	t.OnSessionTransactionBegin = func(
-		info trace.TableSessionTransactionBeginStartInfo,
-	) func(
-		trace.TableSessionTransactionBeginDoneInfo,
-	) {
+	t.OnTxBegin = func(info trace.TableTxBeginStartInfo) func(trace.TableTxBeginDoneInfo) {
 		if cfg.detailer.Details()&trace.TableSessionTransactionEvents != 0 {
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
@@ -328,7 +272,7 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 				attribute.String("node_id", nodeID(safe.ID(info.Session))),
 				attribute.String("session_id", safe.ID(info.Session)),
 			)
-			return func(info trace.TableSessionTransactionBeginDoneInfo) {
+			return func(info trace.TableTxBeginDoneInfo) {
 				finish(
 					start,
 					info.Error,
@@ -338,11 +282,7 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 		}
 		return nil
 	}
-	t.OnSessionTransactionCommit = func(
-		info trace.TableSessionTransactionCommitStartInfo,
-	) func(
-		trace.TableSessionTransactionCommitDoneInfo,
-	) {
+	t.OnTxCommit = func(info trace.TableTxCommitStartInfo) func(trace.TableTxCommitDoneInfo) {
 		if cfg.detailer.Details()&trace.TableSessionTransactionEvents != 0 {
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
@@ -352,17 +292,13 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 				attribute.String("session_id", safe.ID(info.Session)),
 				attribute.String("transaction_id", safe.ID(info.Tx)),
 			)
-			return func(info trace.TableSessionTransactionCommitDoneInfo) {
+			return func(info trace.TableTxCommitDoneInfo) {
 				finish(start, info.Error)
 			}
 		}
 		return nil
 	}
-	t.OnSessionTransactionRollback = func(
-		info trace.TableSessionTransactionRollbackStartInfo,
-	) func(
-		trace.TableSessionTransactionRollbackDoneInfo,
-	) {
+	t.OnTxRollback = func(info trace.TableTxRollbackStartInfo) func(trace.TableTxRollbackDoneInfo) {
 		if cfg.detailer.Details()&trace.TableSessionTransactionEvents != 0 {
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
@@ -372,13 +308,13 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 				attribute.String("session_id", safe.ID(info.Session)),
 				attribute.String("transaction_id", safe.ID(info.Tx)),
 			)
-			return func(info trace.TableSessionTransactionRollbackDoneInfo) {
+			return func(info trace.TableTxRollbackDoneInfo) {
 				finish(start, info.Error)
 			}
 		}
 		return nil
 	}
-	t.OnSessionTransactionExecute = func(
+	t.OnTxExecute = func(
 		info trace.TableTransactionExecuteStartInfo,
 	) func(
 		trace.TableTransactionExecuteDoneInfo,
@@ -399,7 +335,7 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 		}
 		return nil
 	}
-	t.OnSessionTransactionExecuteStatement = func(
+	t.OnTxExecuteStatement = func(
 		info trace.TableTransactionExecuteStatementStartInfo,
 	) func(
 		info trace.TableTransactionExecuteStatementDoneInfo,

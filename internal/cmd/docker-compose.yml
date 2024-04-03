@@ -9,7 +9,8 @@ services:
     environment:
       - COLLECTOR_OTLP_ENABLED=true
   ydb:
-    image: cr.yandex/yc/yandex-docker-local-ydb:trunk
+    image: ghcr.io/ydb-platform/local-ydb:nightly
+#    image: ydbplatform/local-ydb:24.1
     hostname: localhost
     ports:
       - "2135:2135"

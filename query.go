@@ -27,10 +27,7 @@ func query(cfg *config) trace.Query {
 				info.Call.FunctionID(),
 			)
 			return func(info trace.QueryNewDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
+				start.End()
 			}
 		},
 		OnClose: func(info trace.QueryCloseStartInfo) func(info trace.QueryCloseDoneInfo) {
@@ -59,13 +56,10 @@ func query(cfg *config) trace.Query {
 				info.Call.FunctionID(),
 			)
 			return func(info trace.QueryPoolNewDoneInfo) {
-				finish(
-					start,
-					info.Error,
-					attribute.Int("MinSize", info.MinSize),
-					attribute.Int("MaxSize", info.MaxSize),
-					attribute.Int("ProducersCount", info.ProducersCount),
+				start.SetAttributes(
+					attribute.Int("Limit", info.Limit),
 				)
+				start.End()
 			}
 		},
 		OnPoolClose: func(info trace.QueryPoolCloseStartInfo) func(trace.QueryPoolCloseDoneInfo) {
@@ -82,20 +76,6 @@ func query(cfg *config) trace.Query {
 					start,
 					info.Error,
 				)
-			}
-		},
-		OnPoolProduce: func(info trace.QueryPoolSpawnStartInfo) func(trace.QueryPoolSpawnDoneInfo) {
-			if cfg.detailer.Details()&trace.QueryPoolEvents == 0 {
-				return nil
-			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-				attribute.Int("Concurrency", info.Concurrency),
-			)
-			return func(info trace.QueryPoolSpawnDoneInfo) {
-				start.End()
 			}
 		},
 		OnPoolTry: func(info trace.QueryPoolTryStartInfo) func(trace.QueryPoolTryDoneInfo) {
@@ -157,38 +137,6 @@ func query(cfg *config) trace.Query {
 				info.Call.FunctionID(),
 			)
 			return func(info trace.QueryPoolGetDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
-			}
-		},
-		OnPoolSpawn: func(info trace.QueryPoolSpawnStartInfo) func(trace.QueryPoolSpawnDoneInfo) {
-			if cfg.detailer.Details()&trace.QueryPoolEvents == 0 {
-				return nil
-			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
-			return func(info trace.QueryPoolSpawnDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
-			}
-		},
-		OnPoolWant: func(info trace.QueryPoolWantStartInfo) func(trace.QueryPoolWantDoneInfo) {
-			if cfg.detailer.Details()&trace.QueryPoolEvents == 0 {
-				return nil
-			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
-			return func(info trace.QueryPoolWantDoneInfo) {
 				finish(
 					start,
 					info.Error,
