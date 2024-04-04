@@ -34,7 +34,7 @@ import (
         ctx,
         os.Getenv("YDB_CONNECTION_STRING"),
         ydbOtel.WithTraces(
-            tracer,
+            ydbOtel.WithTracer(tracer),
             ydbOtel.WithDetails(trace.DetailsAll),
         ),
     )
