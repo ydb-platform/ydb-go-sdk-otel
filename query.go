@@ -3,10 +3,10 @@ package ydb
 import (
 	"strings"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 func query(cfg *config) trace.Query {

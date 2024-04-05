@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"hash/crc32"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	otelTrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 type metadataCarrier metadata.MD
@@ -223,14 +223,6 @@ func driver(cfg *config) trace.Driver {
 				))
 			}
 		},
-		OnConnAllow: func(info trace.DriverConnAllowStartInfo) func(trace.DriverConnAllowDoneInfo) {
-			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
-				return nil
-			}
-			s := otelTrace.SpanFromContext(*info.Context)
-			s.AddEvent(info.Call.FunctionID())
-			return nil
-		},
 		OnBalancerInit: func(info trace.DriverBalancerInitStartInfo) func(trace.DriverBalancerInitDoneInfo) {
 			if cfg.detailer.Details()&trace.DriverBalancerEvents == 0 {
 				return nil
@@ -385,19 +377,6 @@ func driver(cfg *config) trace.Driver {
 			)
 			return func(info trace.DriverConnPoolNewDoneInfo) {
 				start.End()
-			}
-		},
-		OnPoolRelease: func(info trace.DriverConnPoolReleaseStartInfo) func(trace.DriverConnPoolReleaseDoneInfo) {
-			if cfg.detailer.Details()&trace.DriverEvents == 0 {
-				return nil
-			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
-			return func(info trace.DriverConnPoolReleaseDoneInfo) {
-				finish(start, info.Error)
 			}
 		},
 	}

@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 type (

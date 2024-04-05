@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/google/uuid v1.5.0
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.60.1
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.62.0
 	go.opentelemetry.io/otel v1.21.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.21.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.21.0

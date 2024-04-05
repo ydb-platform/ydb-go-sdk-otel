@@ -1,11 +1,11 @@
 package ydb
 
 import (
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
-	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 func scripting(cfg *config) (t trace.Scripting) {
