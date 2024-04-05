@@ -2,8 +2,6 @@ module github.com/ydb-platform/ydb-go-sdk-otel
 
 go 1.21
 
-toolchain go1.22.1
-
 require (
 	github.com/google/uuid v1.3.1
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.62.0
