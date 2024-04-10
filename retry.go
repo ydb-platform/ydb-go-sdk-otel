@@ -57,7 +57,12 @@ func fieldsFromStore(ctx context.Context) []attribute.KeyValue {
 	return nil
 }
 
-func Retry(cfg *config) (t trace.Retry) {
+func Retry(opts ...Option) trace.Retry {
+	c := makeConfig(opts...)
+	return retry(c)
+}
+
+func retry(cfg *config) (t trace.Retry) {
 	t.OnRetry = func(info trace.RetryLoopStartInfo) func(trace.RetryLoopDoneInfo) {
 		if cfg.detailer.Details()&trace.RetryEvents != 0 && isTraceRetry(*info.Context) { //nolint:nestif
 			operationName := info.Label
