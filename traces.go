@@ -37,7 +37,7 @@ func WithDetailer(d Detailer) Option {
 	}
 }
 
-func WithTraces(opts ...Option) ydb.Option {
+func makeConfig(opts ...Option) *config {
 	c := &config{
 		detailer: trace.DetailsAll,
 	}
@@ -47,6 +47,11 @@ func WithTraces(opts ...Option) ydb.Option {
 	if c.tracer == nil {
 		c.tracer = otel.Tracer(tracerID)
 	}
+	return c
+}
+
+func WithTraces(opts ...Option) ydb.Option {
+	c := makeConfig(opts...)
 	return ydb.MergeOptions(
 		ydb.WithTraceDriver(driver(c)),
 		ydb.WithTraceTable(table(c)),
@@ -56,6 +61,6 @@ func WithTraces(opts ...Option) ydb.Option {
 		ydb.WithTraceRatelimiter(ratelimiter(c)),
 		ydb.WithTraceDiscovery(discovery(c)),
 		ydb.WithTraceDatabaseSQL(databaseSQL(c)),
-		ydb.WithTraceRetry(Retry(c)),
+		ydb.WithTraceRetry(retry(c)),
 	)
 }
