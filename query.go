@@ -301,7 +301,8 @@ func query(cfg *config) trace.Query {
 				)
 			}
 		},
-		OnResultNextResultSet: func(info trace.QueryResultNextResultSetStartInfo) func(info trace.QueryResultNextResultSetDoneInfo) {
+		OnResultNextResultSet: func(info trace.QueryResultNextResultSetStartInfo) func(
+			info trace.QueryResultNextResultSetDoneInfo) {
 			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
 				return nil
 			}
