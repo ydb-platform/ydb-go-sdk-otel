@@ -10,13 +10,14 @@ import (
 	"path"
 	"time"
 
-	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	otelTrace "go.opentelemetry.io/otel/sdk/trace"
+
+	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/balancers"

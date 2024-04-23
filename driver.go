@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"hash/crc32"
 
-	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	otelTrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/metadata"
+
+	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )

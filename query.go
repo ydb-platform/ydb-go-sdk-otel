@@ -3,8 +3,9 @@ package ydb
 import (
 	"strings"
 
-	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
@@ -300,7 +301,8 @@ func query(cfg *config) trace.Query {
 				)
 			}
 		},
-		OnResultNextResultSet: func(info trace.QueryResultNextResultSetStartInfo) func(info trace.QueryResultNextResultSetDoneInfo) {
+		OnResultNextResultSet: func(info trace.QueryResultNextResultSetStartInfo) func(
+			info trace.QueryResultNextResultSetDoneInfo) {
 			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
 				return nil
 			}
