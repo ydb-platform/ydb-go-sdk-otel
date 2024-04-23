@@ -3,9 +3,10 @@ package ydb
 import (
 	"context"
 
-	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 	"go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
+
+	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
@@ -226,7 +227,7 @@ func databaseSQL(c *config) (t trace.DatabaseSQL) {
 	}
 	t.OnTxPrepare = func(info trace.DatabaseSQLTxPrepareStartInfo) func(trace.DatabaseSQLTxPrepareDoneInfo) {
 		if c.detailer.Details()&trace.DatabaseSQLTxEvents != 0 {
-			*info.Context = otelTrace.ContextWithSpan(*info.Context, otelTrace.SpanFromContext(*info.TxContext))
+			*info.Context = otelTrace.ContextWithSpan(*info.Context, otelTrace.SpanFromContext(info.TxContext))
 			start := childSpanWithReplaceCtx(
 				info.Context,
 				info.Call.FunctionID(),
