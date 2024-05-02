@@ -85,6 +85,8 @@ github.com/ydb-platform/ydb-go-sdk/v3 v3.62.0 h1:/w6JsJKq+7lCsFuIwcCHHJxAc3UE2E2
 github.com/ydb-platform/ydb-go-sdk/v3 v3.62.0/go.mod h1:5Muw8UI+7corCqqx/OXAiboCF3jehxyev20B79Y1evk=
 github.com/ydb-platform/ydb-go-sdk/v3 v3.66.0 h1:ffZ1Kh60rA62BVHVafH/xrIn5yrlJ/ZDvIoVg7mhVGo=
 github.com/ydb-platform/ydb-go-sdk/v3 v3.66.0/go.mod h1:hGX4CijskNnUTRgLlqMvZdrBQc1ALZgAnKHytF5nmj4=
+github.com/ydb-platform/ydb-go-sdk/v3 v3.66.2 h1:XGjpAibO00UHXvblWKGEBBCims83OXoG0XsmxjmL9Bs=
+github.com/ydb-platform/ydb-go-sdk/v3 v3.66.2/go.mod h1:hGX4CijskNnUTRgLlqMvZdrBQc1ALZgAnKHytF5nmj4=
 go.opentelemetry.io/otel v1.16.0 h1:Z7GVAX/UkAXPKsy94IU+i6thsQS4nb7LviLpnaNeW8s=
 go.opentelemetry.io/otel v1.16.0/go.mod h1:vl0h9NUa1D5s1nv3A5vZOYWn8av4K8Ml6JDeHrT/bx4=
 go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.16.0 h1:t4ZwRPU+emrcvM2e9DHd0Fsf0JTPVcbfa/BhTDF03d0=

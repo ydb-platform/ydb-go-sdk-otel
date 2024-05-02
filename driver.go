@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"sort"
+	"sync/atomic"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -113,9 +114,10 @@ func driver(cfg *config) trace.Driver {
 		},
 		OnConnNewStream: func(info trace.DriverConnNewStreamStartInfo) func(trace.DriverConnNewStreamDoneInfo) {
 			*info.Context = withTraceID(*info.Context)
-			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+			if cfg.detailer.Details()&trace.DriverConnStreamEvents == 0 {
 				return nil
 			}
+			*info.Context = withMessageCounters(*info.Context)
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -131,37 +133,41 @@ func driver(cfg *config) trace.Driver {
 		},
 		OnConnStreamRecvMsg: func(info trace.DriverConnStreamRecvMsgStartInfo) func(trace.DriverConnStreamRecvMsgDoneInfo) {
 			*info.Context = withTraceID(*info.Context)
-			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+			if cfg.detailer.Details()&trace.DriverConnStreamEvents == 0 {
 				return nil
 			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
+			start := otelTrace.SpanFromContext(*info.Context)
+			counters := countersFromContext(*info.Context)
+			if counters != nil {
+				counters.updateReceivedMessages()
+			}
 			return func(info trace.DriverConnStreamRecvMsgDoneInfo) {
-				finish(start, skipEOF(info.Error))
+				if skipEOF(info.Error) != nil {
+					logError(start, info.Error)
+				}
 			}
 		},
 		OnConnStreamSendMsg: func(info trace.DriverConnStreamSendMsgStartInfo) func(trace.DriverConnStreamSendMsgDoneInfo) {
 			*info.Context = withTraceID(*info.Context)
-			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+			if cfg.detailer.Details()&trace.DriverConnStreamEvents == 0 {
 				return nil
 			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
+			start := otelTrace.SpanFromContext(*info.Context)
+			counters := countersFromContext(*info.Context)
+			if counters != nil {
+				counters.updateSentMessages()
+			}
 			return func(info trace.DriverConnStreamSendMsgDoneInfo) {
-				finish(start, info.Error)
+				if info.Error != nil {
+					logError(start, info.Error)
+				}
 			}
 		},
 		OnConnStreamCloseSend: func(info trace.DriverConnStreamCloseSendStartInfo) func(
 			trace.DriverConnStreamCloseSendDoneInfo,
 		) {
 			*info.Context = withTraceID(*info.Context)
-			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
+			if cfg.detailer.Details()&trace.DriverConnStreamEvents == 0 {
 				return nil
 			}
 			start := childSpanWithReplaceCtx(
@@ -172,6 +178,26 @@ func driver(cfg *config) trace.Driver {
 			return func(info trace.DriverConnStreamCloseSendDoneInfo) {
 				finish(start, info.Error)
 			}
+		},
+		OnConnStreamFinish: func(info trace.DriverConnStreamFinishInfo) {
+			if cfg.detailer.Details()&trace.DriverConnStreamEvents == 0 {
+				return
+			}
+			start := childSpanWithReplaceCtx(
+				cfg.tracer,
+				&info.Context,
+				info.Call.FunctionID(),
+			)
+			counters := countersFromContext(info.Context)
+
+			var attributes []attribute.KeyValue
+			if counters != nil {
+				attributes = []attribute.KeyValue{
+					attribute.Int64("received_messages", counters.receivedMessages()),
+					attribute.Int64("sent_messages", counters.sentMessages()),
+				}
+			}
+			finish(start, info.Error, attributes...)
 		},
 		OnConnPark: func(info trace.DriverConnParkStartInfo) func(trace.DriverConnParkDoneInfo) {
 			if cfg.detailer.Details()&trace.DriverConnEvents == 0 {
@@ -390,4 +416,46 @@ func driver(cfg *config) trace.Driver {
 			}
 		},
 	}
+}
+
+type countersKey struct{}
+
+func withMessageCounters(ctx context.Context) context.Context {
+	return context.WithValue(ctx, countersKey{}, newCounters())
+}
+
+func countersFromContext(ctx context.Context) *counters {
+	value, ok := ctx.Value(countersKey{}).(*counters)
+	if !ok {
+		return nil
+	}
+	return value
+}
+
+type counters struct {
+	sent     *atomic.Int64
+	received *atomic.Int64
+}
+
+func newCounters() *counters {
+	return &counters{
+		sent:     &atomic.Int64{},
+		received: &atomic.Int64{},
+	}
+}
+
+func (c *counters) updateSentMessages() {
+	c.sent.Add(1)
+}
+
+func (c *counters) updateReceivedMessages() {
+	c.received.Add(1)
+}
+
+func (c *counters) sentMessages() int64 {
+	return c.sent.Load()
+}
+
+func (c *counters) receivedMessages() int64 {
+	return c.received.Load()
 }
