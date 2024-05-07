@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"hash/crc32"
+	"sort"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -24,7 +25,15 @@ func (m metadataCarrier) Get(key string) string {
 }
 
 func (m metadataCarrier) Set(key string, value string) {
-	m[key] = append(m[key], value)
+	if values, has := m[key]; has {
+		sort.Strings(values)
+		if i := sort.SearchStrings(values, value); i == len(values) {
+			values = append(values, value)
+		}
+		m[key] = values
+	} else {
+		m[key] = []string{value}
+	}
 }
 
 func (m metadataCarrier) Keys() []string {
