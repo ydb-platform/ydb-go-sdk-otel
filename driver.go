@@ -437,9 +437,6 @@ type counters struct {
 	received atomic.Int64
 }
 
-func newCounters() *counters {
-	return &counters{}
-	}
 }
 
 func (c *counters) updateSentMessages() {
