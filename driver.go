@@ -421,11 +421,11 @@ func driver(cfg *config) trace.Driver {
 type grpcStreamMsgCountersKey struct{}
 
 func withGrpcStreamMsgCounters(ctx context.Context) context.Context {
-	return context.WithValue(ctx, grpcStreamMsgCountersKey{}, &counters{})
+	return context.WithValue(ctx, grpcStreamMsgCountersKey{}, &grpcStreamMsgCounters{})
 }
 
-func grpcStreamMsgCountersFromContext(ctx context.Context) *counters {
-	value, ok := ctx.Value(grpcStreamMsgCountersKey{}).(*counters)
+func grpcStreamMsgCountersFromContext(ctx context.Context) *grpcStreamMsgCounters {
+	value, ok := ctx.Value(grpcStreamMsgCountersKey{}).(*grpcStreamMsgCounters)
 	if !ok {
 		return nil
 	}
