@@ -438,9 +438,7 @@ type counters struct {
 }
 
 func newCounters() *counters {
-	return &counters{
-		sent:     &atomic.Int64{},
-		received: &atomic.Int64{},
+	return &counters{}
 	}
 }
 
