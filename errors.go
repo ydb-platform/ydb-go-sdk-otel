@@ -6,7 +6,7 @@ import (
 )
 
 func skipEOF(err error) error {
-	if errors.Is(err, io.EOF) {
+	if err == nil || errors.Is(err, io.EOF) {
 		return nil
 	}
 	return err
