@@ -432,7 +432,7 @@ func countersFromContext(ctx context.Context) *counters {
 	return value
 }
 
-type counters struct {
+type grpcStreamMsgCounters struct {
 	sent     atomic.Int64
 	received atomic.Int64
 }
