@@ -418,14 +418,14 @@ func driver(cfg *config) trace.Driver {
 	}
 }
 
-type countersKey struct{}
+type grpcStreamMsgCountersKey struct{}
 
 func withMessageCounters(ctx context.Context) context.Context {
-	return context.WithValue(ctx, countersKey{}, &counters{})
+	return context.WithValue(ctx, grpcStreamMsgCountersKey{}, &counters{})
 }
 
 func countersFromContext(ctx context.Context) *counters {
-	value, ok := ctx.Value(countersKey{}).(*counters)
+	value, ok := ctx.Value(grpcStreamMsgCountersKey{}).(*counters)
 	if !ok {
 		return nil
 	}
