@@ -42,7 +42,7 @@ func (m metadataCarrier) Keys() []string {
 }
 
 // driver makes driver with publishing traces
-func driver(cfg *config) trace.Driver {
+func driver(cfg *config) trace.Driver { //nolint:gocyclo
 	propagator := propagation.TraceContext{}
 	withTraceID := func(ctx context.Context) context.Context {
 		md, _ := metadata.FromOutgoingContext(ctx)
