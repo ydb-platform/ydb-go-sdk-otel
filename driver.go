@@ -117,7 +117,7 @@ func driver(cfg *config) trace.Driver {
 			if cfg.detailer.Details()&trace.DriverConnStreamEvents == 0 {
 				return nil
 			}
-			*info.Context = withMessageCounters(*info.Context)
+			*info.Context = withGrpcStreamMsgCounters(*info.Context)
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
 				info.Context,
@@ -420,7 +420,7 @@ func driver(cfg *config) trace.Driver {
 
 type grpcStreamMsgCountersKey struct{}
 
-func withMessageCounters(ctx context.Context) context.Context {
+func withGrpcStreamMsgCounters(ctx context.Context) context.Context {
 	return context.WithValue(ctx, grpcStreamMsgCountersKey{}, &counters{})
 }
 
