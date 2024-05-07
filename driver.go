@@ -140,7 +140,7 @@ func driver(cfg *config) trace.Driver {
 				info.Call.FunctionID(),
 			)
 			return func(info trace.DriverConnStreamRecvMsgDoneInfo) {
-				finish(start, info.Error)
+				finish(start, skipEOF(info.Error))
 			}
 		},
 		OnConnStreamSendMsg: func(info trace.DriverConnStreamSendMsgStartInfo) func(trace.DriverConnStreamSendMsgDoneInfo) {
