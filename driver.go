@@ -421,7 +421,7 @@ func driver(cfg *config) trace.Driver {
 type countersKey struct{}
 
 func withMessageCounters(ctx context.Context) context.Context {
-	return context.WithValue(ctx, countersKey{}, newCounters())
+	return context.WithValue(ctx, countersKey{}, &counters{})
 }
 
 func countersFromContext(ctx context.Context) *counters {
@@ -433,8 +433,8 @@ func countersFromContext(ctx context.Context) *counters {
 }
 
 type counters struct {
-	sent     *atomic.Int64
-	received *atomic.Int64
+	sent     atomic.Int64
+	received atomic.Int64
 }
 
 func newCounters() *counters {
