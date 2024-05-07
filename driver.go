@@ -437,18 +437,18 @@ type counters struct {
 	received atomic.Int64
 }
 
-func (c *counters) updateSentMessages() {
+func (c *grpcStreamMsgCounters) updateSentMessages() {
 	c.sent.Add(1)
 }
 
-func (c *counters) updateReceivedMessages() {
+func (c *grpcStreamMsgCounters) updateReceivedMessages() {
 	c.received.Add(1)
 }
 
-func (c *counters) sentMessages() int64 {
+func (c *grpcStreamMsgCounters) sentMessages() int64 {
 	return c.sent.Load()
 }
 
-func (c *counters) receivedMessages() int64 {
+func (c *grpcStreamMsgCounters) receivedMessages() int64 {
 	return c.received.Load()
 }
