@@ -137,7 +137,7 @@ func driver(cfg *config) trace.Driver {
 				return nil
 			}
 			start := otelTrace.SpanFromContext(*info.Context)
-			counters := countersFromContext(*info.Context)
+			counters := grpcStreamMsgCountersFromContext(*info.Context)
 			if counters != nil {
 				counters.updateReceivedMessages()
 			}
@@ -153,7 +153,7 @@ func driver(cfg *config) trace.Driver {
 				return nil
 			}
 			start := otelTrace.SpanFromContext(*info.Context)
-			counters := countersFromContext(*info.Context)
+			counters := grpcStreamMsgCountersFromContext(*info.Context)
 			if counters != nil {
 				counters.updateSentMessages()
 			}
@@ -424,7 +424,7 @@ func withGrpcStreamMsgCounters(ctx context.Context) context.Context {
 	return context.WithValue(ctx, grpcStreamMsgCountersKey{}, &counters{})
 }
 
-func countersFromContext(ctx context.Context) *counters {
+func grpcStreamMsgCountersFromContext(ctx context.Context) *counters {
 	value, ok := ctx.Value(grpcStreamMsgCountersKey{}).(*counters)
 	if !ok {
 		return nil
