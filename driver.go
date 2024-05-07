@@ -188,7 +188,7 @@ func driver(cfg *config) trace.Driver {
 				&info.Context,
 				info.Call.FunctionID(),
 			)
-			counters := countersFromContext(info.Context)
+			counters := grpcStreamMsgCountersFromContext(info.Context)
 
 			var attributes []attribute.KeyValue
 			if counters != nil {
