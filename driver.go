@@ -190,12 +190,12 @@ func driver(cfg *config) trace.Driver {
 			)
 			counters := grpcStreamMsgCountersFromContext(info.Context)
 
-			var attributes []attribute.KeyValue
+			attributes := make([]attribute.KeyValue, 0, 2)
 			if counters != nil {
-				attributes = []attribute.KeyValue{
+				attributes = append(attributes,
 					attribute.Int64("received_messages", counters.receivedMessages()),
 					attribute.Int64("sent_messages", counters.sentMessages()),
-				}
+				)
 			}
 			finish(start, info.Error, attributes...)
 		},
