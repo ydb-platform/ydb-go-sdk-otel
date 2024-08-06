@@ -61,3 +61,25 @@ func childSpan(
 		trace.WithAttributes(fields...),
 	)
 }
+
+func logToParentSpan(
+	ctx context.Context, //nolint:revive
+	msg string,
+	fields ...attribute.KeyValue,
+) {
+	parent := trace.SpanFromContext(ctx)
+	if len(fields) > 0 {
+		parent.AddEvent(msg, trace.WithAttributes(fields...))
+	} else {
+		parent.AddEvent(msg)
+	}
+}
+
+func logToParentSpanError(
+	ctx context.Context, //nolint:revive
+	err error,
+	fields ...attribute.KeyValue,
+) {
+	parent := trace.SpanFromContext(ctx)
+	logError(parent, err, fields...)
+}

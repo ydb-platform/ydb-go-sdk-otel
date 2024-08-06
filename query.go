@@ -1,9 +1,10 @@
 package ydb
 
 import (
-	"strings"
-
+	"errors"
 	"go.opentelemetry.io/otel/attribute"
+	"io"
+	"strings"
 
 	"github.com/ydb-platform/ydb-go-sdk-otel/internal/safe"
 
@@ -201,17 +202,18 @@ func query(cfg *config) trace.Query {
 			if cfg.detailer.Details()&trace.QuerySessionEvents == 0 {
 				return nil
 			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
+
+			ctx := *info.Context
+			call := info.Call.FunctionID()
 
 			return func(info trace.QuerySessionAttachDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
+				if info.Error == nil {
+					logToParentSpan(ctx, call)
+				} else if errors.Is(info.Error, io.EOF) {
+					logToParentSpan(ctx, call+" => io.EOF")
+				} else {
+					logToParentSpanError(ctx, info.Error)
+				}
 			}
 		},
 		OnSessionDelete: func(info trace.QuerySessionDeleteStartInfo) func(info trace.QuerySessionDeleteDoneInfo) {
@@ -271,34 +273,34 @@ func query(cfg *config) trace.Query {
 			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
 				return nil
 			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
+
+			ctx := *info.Context
+			call := info.Call.FunctionID()
 
 			return func(info trace.QueryResultNewDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
+				if info.Error == nil {
+					logToParentSpan(ctx, call)
+				} else {
+					logToParentSpanError(ctx, info.Error)
+				}
 			}
 		},
 		OnResultNextPart: func(info trace.QueryResultNextPartStartInfo) func(info trace.QueryResultNextPartDoneInfo) {
 			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
 				return nil
 			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
+
+			ctx := *info.Context
+			call := info.Call.FunctionID()
 
 			return func(info trace.QueryResultNextPartDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
+				if info.Error == nil {
+					logToParentSpan(ctx, call)
+				} else if errors.Is(info.Error, io.EOF) {
+					logToParentSpan(ctx, call+" => io.EOF")
+				} else {
+					logToParentSpanError(ctx, info.Error)
+				}
 			}
 		},
 		OnResultNextResultSet: func(info trace.QueryResultNextResultSetStartInfo) func(
@@ -306,102 +308,100 @@ func query(cfg *config) trace.Query {
 			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
 				return nil
 			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
+
+			ctx := *info.Context
+			call := info.Call.FunctionID()
 
 			return func(info trace.QueryResultNextResultSetDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
+				if info.Error == nil {
+					logToParentSpan(ctx, call)
+				} else if errors.Is(info.Error, io.EOF) {
+					logToParentSpan(ctx, call+" => io.EOF")
+				} else {
+					logToParentSpanError(ctx, info.Error)
+				}
 			}
 		},
 		OnResultClose: func(info trace.QueryResultCloseStartInfo) func(info trace.QueryResultCloseDoneInfo) {
 			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
 				return nil
 			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
+
+			ctx := *info.Context
+			call := info.Call.FunctionID()
 
 			return func(info trace.QueryResultCloseDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
+				if info.Error == nil {
+					logToParentSpan(ctx, call)
+				} else {
+					logToParentSpanError(ctx, info.Error)
+				}
 			}
 		},
 		OnResultSetNextRow: func(info trace.QueryResultSetNextRowStartInfo) func(info trace.QueryResultSetNextRowDoneInfo) {
 			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
 				return nil
 			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
+
+			ctx := *info.Context
+			call := info.Call.FunctionID()
 
 			return func(info trace.QueryResultSetNextRowDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
+				if info.Error == nil {
+					logToParentSpan(ctx, call)
+				} else if errors.Is(info.Error, io.EOF) {
+					logToParentSpan(ctx, call+" => io.EOF")
+				} else {
+					logToParentSpanError(ctx, info.Error)
+				}
 			}
 		},
 		OnRowScan: func(info trace.QueryRowScanStartInfo) func(info trace.QueryRowScanDoneInfo) {
 			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
 				return nil
 			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
+
+			ctx := *info.Context
+			call := info.Call.FunctionID()
 
 			return func(info trace.QueryRowScanDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
+				if info.Error == nil {
+					logToParentSpan(ctx, call)
+				} else {
+					logToParentSpanError(ctx, info.Error)
+				}
 			}
 		},
 		OnRowScanNamed: func(info trace.QueryRowScanNamedStartInfo) func(info trace.QueryRowScanNamedDoneInfo) {
 			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
 				return nil
 			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
+
+			ctx := *info.Context
+			call := info.Call.FunctionID()
 
 			return func(info trace.QueryRowScanNamedDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
+				if info.Error == nil {
+					logToParentSpan(ctx, call)
+				} else {
+					logToParentSpanError(ctx, info.Error)
+				}
 			}
 		},
 		OnRowScanStruct: func(info trace.QueryRowScanStructStartInfo) func(info trace.QueryRowScanStructDoneInfo) {
 			if cfg.detailer.Details()&trace.QueryResultEvents == 0 {
 				return nil
 			}
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
+
+			ctx := *info.Context
+			call := info.Call.FunctionID()
 
 			return func(info trace.QueryRowScanStructDoneInfo) {
-				finish(
-					start,
-					info.Error,
-				)
+				if info.Error == nil {
+					logToParentSpan(ctx, call)
+				} else {
+					logToParentSpanError(ctx, info.Error)
+				}
 			}
 		},
 	}
