@@ -11,9 +11,9 @@ import (
 )
 
 func query(cfg *config) trace.Query {
-	nodeID := func(session interface{ NodeID() int64 }) int64 {
+	nodeID := func(session interface{ NodeID() uint32 }) int64 {
 		if session != nil {
-			return session.NodeID()
+			return int64(session.NodeID())
 		}
 		return 0
 	}
