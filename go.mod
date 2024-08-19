@@ -1,10 +1,10 @@
 module github.com/ydb-platform/ydb-go-sdk-otel
 
-go 1.21
+go 1.23
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.76.4
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.77.0-rc0
 	go.opentelemetry.io/otel v1.26.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.26.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.26.0
