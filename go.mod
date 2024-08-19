@@ -1,6 +1,6 @@
 module github.com/ydb-platform/ydb-go-sdk-otel
 
-go 1.23
+go 1.21
 
 require (
 	github.com/google/uuid v1.6.0
