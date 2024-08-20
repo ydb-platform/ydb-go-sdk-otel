@@ -2,6 +2,7 @@ package safe
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 )
 
@@ -57,7 +58,8 @@ type id interface {
 }
 
 func ID(id id) string {
-	if id == nil {
+	v := reflect.ValueOf(id)
+	if v.IsNil() {
 		return ""
 	}
 	return id.ID()
