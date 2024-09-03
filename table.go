@@ -418,24 +418,5 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 		}
 		return nil
 	}
-	t.OnPoolWait = func(info trace.TablePoolWaitStartInfo) func(trace.TablePoolWaitDoneInfo) {
-		if cfg.detailer.Details()&trace.TablePoolAPIEvents != 0 {
-			start := childSpanWithReplaceCtx(
-				cfg.tracer,
-				info.Context,
-				info.Call.FunctionID(),
-			)
-			return func(info trace.TablePoolWaitDoneInfo) {
-				finish(
-					start,
-					info.Error,
-					attribute.String("status", safe.Status(info.Session)),
-					attribute.String("node_id", nodeID(safe.ID(info.Session))),
-					attribute.String("session_id", safe.ID(info.Session)),
-				)
-			}
-		}
-		return nil
-	}
 	return t
 }
