@@ -145,7 +145,7 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 		}
 		return nil
 	}
-	t.OnSessionBulkUpsert = func(info trace.TableBulkUpsertStartInfo) func(trace.TableBulkUpsertDoneInfo) {
+	t.OnSessionBulkUpsert = func(info trace.TableSessionBulkUpsertStartInfo) func(trace.TableSessionBulkUpsertDoneInfo) {
 		if cfg.detailer.Details()&trace.TableSessionQueryEvents != 0 {
 			start := childSpanWithReplaceCtx(
 				cfg.tracer,
@@ -154,7 +154,7 @@ func table(cfg *config) (t trace.Table) { //nolint:gocyclo
 				attribute.String("node_id", nodeID(safe.ID(info.Session))),
 				attribute.String("session_id", safe.ID(info.Session)),
 			)
-			return func(info trace.TableBulkUpsertDoneInfo) {
+			return func(info trace.TableSessionBulkUpsertDoneInfo) {
 				finish(start, info.Error)
 			}
 		}
