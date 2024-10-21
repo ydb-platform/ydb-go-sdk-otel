@@ -2,6 +2,7 @@ package ydb
 
 import (
 	"context"
+
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/spans"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
@@ -28,10 +29,14 @@ func (cfg *adapter) SpanFromContext(ctx context.Context) spans.Span {
 	}
 }
 
-func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...spans.KeyValue) (context.Context, spans.Span) {
-	childCtx, s := cfg.tracer.Start(ctx, operationName, otelTrace.WithAttributes(fieldsToAttributes(fields)...))
+func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...spans.KeyValue) (
+	context.Context, spans.Span,
+) {
+	childCtx, s := cfg.tracer.Start(ctx, operationName, //nolint:spancheck
+		otelTrace.WithAttributes(fieldsToAttributes(fields)...),
+	)
 
-	return childCtx, &span{
+	return childCtx, &span{ //nolint:spancheck
 		span: s,
 	}
 }

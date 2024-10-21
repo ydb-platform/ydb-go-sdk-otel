@@ -3,9 +3,8 @@ package ydb
 import (
 	"fmt"
 
-	"go.opentelemetry.io/otel/attribute"
-	
 	"github.com/ydb-platform/ydb-go-sdk/v3/spans"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func fieldToAttribute(field spans.KeyValue) attribute.KeyValue {

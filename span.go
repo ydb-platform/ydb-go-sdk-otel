@@ -1,10 +1,9 @@
 package ydb
 
 import (
+	"github.com/ydb-platform/ydb-go-sdk/v3/spans"
 	"go.opentelemetry.io/otel/codes"
 	otelTrace "go.opentelemetry.io/otel/trace"
-
-	"github.com/ydb-platform/ydb-go-sdk/v3/spans"
 )
 
 var _ spans.Span = (*span)(nil)
@@ -34,7 +33,7 @@ func (s *span) TraceID() (string, bool) {
 
 func (s *span) Link(link spans.Span, fields ...spans.KeyValue) {
 	s.span.AddLink(otelTrace.Link{
-		SpanContext: link.(*span).span.SpanContext(),
+		SpanContext: link.(*span).span.SpanContext(), //nolint:forcetypeassert
 		Attributes:  fieldsToAttributes(fields),
 	})
 }
