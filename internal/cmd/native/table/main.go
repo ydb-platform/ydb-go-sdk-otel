@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"os"
@@ -35,7 +34,7 @@ var (
 )
 
 func init() {
-	log.SetOutput(io.Discard)
+	//log.SetOutput(io.Discard)
 }
 
 func initTracer() func(context.Context) error {

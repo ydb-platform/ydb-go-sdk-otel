@@ -9,19 +9,19 @@ services:
     environment:
       - COLLECTOR_OTLP_ENABLED=true
   ydb:
-    image: ghcr.io/ydb-platform/local-ydb:nightly
+    image: ydbplatform/local-ydb:latest
     hostname: localhost
     ports:
       - "2135:2135"
       - "2136:2136"
       - "8765:8765"
       - "5432:5432"
-    volumes:
-      - ./ydb_data:/ydb_data
-      - ./ydb_certs:/ydb_certs
     environment:
-      - YDB_LOCAL_SURVIVE_RESTART=true
+      - YDB_USE_IN_MEMORY_PDISKS=true
+      - YDB_TABLE_ENABLE_PREPARED_DDL=true
       - YDB_DEFAULT_LOG_LEVEL=NOTICE
       - GRPC_TLS_PORT=2135
       - GRPC_PORT=2136
       - MON_PORT=8765
+      - YDB_FEATURE_FLAGS=enable_topic_service_tx
+      - YDB_ENABLE_COLUMN_TABLES=true
