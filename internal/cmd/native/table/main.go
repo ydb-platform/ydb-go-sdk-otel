@@ -4,21 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"os"
 	"path"
 	"time"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/sdk/resource"
-	otelTrace "go.opentelemetry.io/otel/sdk/trace"
-
-	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -27,6 +17,14 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	otelTrace "go.opentelemetry.io/otel/sdk/trace"
+
+	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 )
 
 var (
@@ -35,7 +33,7 @@ var (
 )
 
 func init() {
-	log.SetOutput(io.Discard)
+	//log.SetOutput(io.Discard)
 }
 
 func initTracer() func(context.Context) error {
