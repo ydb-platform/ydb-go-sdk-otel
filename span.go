@@ -18,6 +18,14 @@ type (
 	nopSpan struct{}
 )
 
+func (nopSpan) ID() (_ string, valid bool) {
+	return "", false
+}
+
+func (s *span) ID() (_ string, valid bool) {
+	return s.span.SpanContext().SpanID().String(), true
+}
+
 func (nopSpan) TraceID() (_ string, valid bool) {
 	return "", false
 }
