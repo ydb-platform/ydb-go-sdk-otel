@@ -6,39 +6,15 @@ import (
 	otelTrace "go.opentelemetry.io/otel/trace"
 )
 
-var (
-	_ spans.Span = (*span)(nil)
-	_ spans.Span = nopSpan{}
-)
+var _ spans.Span = (*span)(nil)
 
-type (
-	span struct {
-		span otelTrace.Span
-	}
-	nopSpan struct{}
-)
-
-func (nopSpan) ID() (_ string, valid bool) {
-	return "", false
+type span struct {
+	span otelTrace.Span
 }
 
 func (s *span) ID() (_ string, valid bool) {
 	return s.span.SpanContext().SpanID().String(), true
 }
-
-func (nopSpan) TraceID() (_ string, valid bool) {
-	return "", false
-}
-
-func (nopSpan) Link(link spans.Span, attributes ...spans.KeyValue) {}
-
-func (nopSpan) Log(msg string, attributes ...spans.KeyValue) {}
-
-func (nopSpan) Warn(err error, attributes ...spans.KeyValue) {}
-
-func (nopSpan) Error(err error, attributes ...spans.KeyValue) {}
-
-func (nopSpan) End(attributes ...spans.KeyValue) {}
 
 func (s *span) Log(msg string, fields ...spans.KeyValue) {
 	s.span.AddEvent(msg, otelTrace.WithAttributes(fieldsToAttributes(fields)...))

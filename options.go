@@ -24,9 +24,3 @@ func WithDetailer(d trace.Detailer) Option {
 		c.detailer = d
 	}
 }
-
-func AllowStartSpansWithoutParentSpan() Option {
-	return func(c *adapter) {
-		c.nopWithoutParentSpan = false
-	}
-}

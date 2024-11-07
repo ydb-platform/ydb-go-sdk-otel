@@ -15,9 +15,8 @@ const tracerID = "ydb-go-sdk"
 var _ spans.Adapter = (*adapter)(nil)
 
 type adapter struct {
-	tracer               otelTrace.Tracer
-	detailer             trace.Detailer
-	nopWithoutParentSpan bool
+	tracer   otelTrace.Tracer
+	detailer trace.Detailer
 }
 
 func (cfg *adapter) Details() trace.Details {
@@ -33,10 +32,6 @@ func (cfg *adapter) SpanFromContext(ctx context.Context) spans.Span {
 func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...spans.KeyValue) (
 	context.Context, spans.Span,
 ) {
-	if !otelTrace.SpanFromContext(ctx).SpanContext().TraceID().IsValid() {
-		return ctx, nopSpan{}
-	}
-
 	childCtx, s := cfg.tracer.Start(ctx, operationName, //nolint:spancheck
 		otelTrace.WithAttributes(fieldsToAttributes(fields)...),
 	)
@@ -48,8 +43,7 @@ func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...s
 
 func WithTraces(opts ...Option) ydb.Option {
 	cfg := &adapter{
-		detailer:             trace.DetailsAll,
-		nopWithoutParentSpan: true,
+		detailer: trace.DetailsAll,
 	}
 	for _, opt := range opts {
 		opt(cfg)
