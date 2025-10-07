@@ -4,13 +4,17 @@ import (
 	"context"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/log"
 	"github.com/ydb-platform/ydb-go-sdk/v3/spans"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel"
 	otelTrace "go.opentelemetry.io/otel/trace"
 )
 
-const tracerID = "ydb-go-sdk"
+const (
+	tracerID        = "ydb-go-sdk"
+	traceIDLogField = "otel-trace-id"
+)
 
 var _ spans.Adapter = (*adapter)(nil)
 
@@ -35,6 +39,10 @@ func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...s
 	childCtx, s := cfg.tracer.Start(ctx, operationName, //nolint:spancheck
 		otelTrace.WithAttributes(fieldsToAttributes(fields)...),
 	)
+
+	if spanCtx := s.SpanContext(); spanCtx.IsValid() {
+		childCtx = log.WithFields(childCtx, log.String(traceIDLogField, spanCtx.TraceID().String()))
+	}
 
 	return childCtx, &span{ //nolint:spancheck
 		span: s,
