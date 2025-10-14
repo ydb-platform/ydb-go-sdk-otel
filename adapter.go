@@ -41,7 +41,19 @@ func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...s
 	)
 
 	if spanCtx := s.SpanContext(); spanCtx.IsValid() {
-		childCtx = log.WithFields(childCtx, log.String(traceIDLogField, spanCtx.TraceID().String()))
+		logFields := log.FieldsFromContext(childCtx)
+
+		var hasTraceID bool
+		for _, field := range logFields {
+			if field.Key() == traceIDLogField {
+				hasTraceID = true
+				break
+			}
+		}
+
+		if !hasTraceID {
+			childCtx = log.WithFields(childCtx, log.String(traceIDLogField, spanCtx.TraceID().String()))
+		}
 	}
 
 	return childCtx, &span{ //nolint:spancheck
