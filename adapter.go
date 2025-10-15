@@ -5,6 +5,7 @@ import (
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/log"
+	"github.com/ydb-platform/ydb-go-sdk/v3/pkg/xslices"
 	"github.com/ydb-platform/ydb-go-sdk/v3/spans"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel"
@@ -42,16 +43,9 @@ func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...s
 
 	if spanCtx := s.SpanContext(); spanCtx.IsValid() {
 		logFields := log.FieldsFromContext(childCtx)
-
-		var hasTraceID bool
-		for _, field := range logFields {
-			if field.Key() == traceIDLogField {
-				hasTraceID = true
-				break
-			}
-		}
-
-		if !hasTraceID {
+		if len(xslices.Filter(logFields, func(field log.Field) bool {
+			return field.Key() == traceIDLogField
+		})) > 0 {
 			childCtx = log.WithFields(childCtx, log.String(traceIDLogField, spanCtx.TraceID().String()))
 		}
 	}
