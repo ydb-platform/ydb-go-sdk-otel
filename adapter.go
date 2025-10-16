@@ -45,7 +45,7 @@ func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...s
 		logFields := log.FieldsFromContext(childCtx)
 		if len(xslices.Filter(logFields, func(field log.Field) bool {
 			return field.Key() == traceIDLogField
-		})) > 0 {
+		})) == 0 {
 			childCtx = log.WithFields(childCtx, log.String(traceIDLogField, spanCtx.TraceID().String()))
 		}
 	}
