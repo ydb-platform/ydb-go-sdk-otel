@@ -2,6 +2,7 @@ package ydb
 
 import (
 	"context"
+	"slices"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/log"
@@ -43,9 +44,9 @@ func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...s
 
 	if spanCtx := s.SpanContext(); spanCtx.IsValid() {
 		logFields := log.FieldsFromContext(childCtx)
-		if len(xslices.Filter(logFields, func(field log.Field) bool {
-			return field.Key() == traceIDLogField
-		})) == 0 {
+		if !slices.Contains(xslices.Transform(logFields, func(field log.Field) string {
+			return field.Key()
+		}), traceIDLogField) {
 			childCtx = log.WithFields(childCtx, log.String(traceIDLogField, spanCtx.TraceID().String()))
 		}
 	}
