@@ -92,7 +92,7 @@ func main() {
 	nativeDriver, err := ydb.Open(ctx, os.Getenv("YDB_CONNECTION_STRING"),
 		ydb.WithDiscoveryInterval(5*time.Second),
 		ydb.WithBalancer(balancers.PreferLocalDC(balancers.RandomChoice())),
-		ydbOtel.WithTraces(
+		ydbOtel.WithTracer(
 			tracer,
 			ydbOtel.WithDetailer(trace.DetailsAll),
 		),

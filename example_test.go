@@ -25,7 +25,7 @@ func ExampleWithTraces() {
 	db, err := ydb.Open(
 		context.Background(),
 		connectionString,
-		ydbOtel.WithTraces(tracer, ydbOtel.WithDetailer(trace.DetailsAll)),
+		ydbOtel.WithTracer(tracer, ydbOtel.WithDetailer(trace.DetailsAll)),
 	)
 	if err != nil {
 		panic(err)
@@ -99,7 +99,7 @@ func Example_openTelemetry() {
 	db, err := ydb.Open(
 		context.Background(),
 		connectionString,
-		ydbOtel.WithTraces(tracer, ydbOtel.WithDetailer(detailer)),
+		ydbOtel.WithTracer(tracer, ydbOtel.WithDetailer(detailer)),
 		ydbOtel.WithMetrics(meter, ydbOtel.WithDetailer(detailer)),
 		ydbOtel.WithLogger(logger, ydbOtel.WithDetailer(detailer)),
 	)
