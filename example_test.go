@@ -7,8 +7,8 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/log/global"
 	otelLog "go.opentelemetry.io/otel/log"
+	"go.opentelemetry.io/otel/log/global"
 
 	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 )
@@ -25,10 +25,7 @@ func ExampleWithTraces() {
 	db, err := ydb.Open(
 		context.Background(),
 		connectionString,
-		ydbOtel.WithTraces(
-			ydbOtel.WithTracer(tracer),
-			ydbOtel.WithDetails(trace.DetailsAll),
-		),
+		ydbOtel.WithTraces(tracer, ydbOtel.WithDetailer(trace.DetailsAll)),
 	)
 	if err != nil {
 		panic(err)
@@ -43,6 +40,7 @@ func ExampleWithTraces() {
 func ExampleWithMetrics() {
 	// Configure global MeterProvider before opening the driver.
 	// See go.opentelemetry.io/otel/sdk/metric and OTLP metric exporters.
+	meter := otel.Meter("my-service")
 	connectionString := os.Getenv("YDB_CONNECTION_STRING")
 	if connectionString == "" {
 		return
@@ -51,9 +49,7 @@ func ExampleWithMetrics() {
 	db, err := ydb.Open(
 		context.Background(),
 		connectionString,
-		ydbOtel.WithMetrics(
-			ydbOtel.WithMetricsDetailer(trace.DetailsAll),
-		),
+		ydbOtel.WithMetrics(meter, ydbOtel.WithDetailer(trace.DetailsAll)),
 	)
 	if err != nil {
 		panic(err)
@@ -77,10 +73,7 @@ func ExampleWithLogger() {
 	db, err := ydb.Open(
 		context.Background(),
 		connectionString,
-		ydbOtel.WithLogger(
-			ydbOtel.WithLogLogger(customLogger),
-			ydbOtel.WithLogDetailer(trace.DetailsAll),
-		),
+		ydbOtel.WithLogger(customLogger, ydbOtel.WithDetailer(trace.DetailsAll)),
 	)
 	if err != nil {
 		panic(err)
@@ -94,9 +87,10 @@ func ExampleWithLogger() {
 
 func Example_openTelemetry() {
 	// Typical setup: traces, metrics and logs via global OpenTelemetry providers.
-	_ = global.Logger("my-service")
-	_ = otel.Tracer("my-service")
-	_ = otel.Meter("my-service")
+	detailer := trace.DetailsAll
+	logger := global.Logger("my-service")
+	tracer := otel.Tracer("my-service")
+	meter := otel.Meter("my-service")
 	connectionString := os.Getenv("YDB_CONNECTION_STRING")
 	if connectionString == "" {
 		return
@@ -105,22 +99,9 @@ func Example_openTelemetry() {
 	db, err := ydb.Open(
 		context.Background(),
 		connectionString,
-		ydbOtel.WithTraces(
-			ydbOtel.WithTracer(otel.Tracer("my-service")),
-			ydbOtel.WithDetailer(trace.DetailsAll),
-		),
-		ydbOtel.WithMetrics(
-			ydbOtel.WithMeter(otel.Meter("my-service")),
-			ydbOtel.WithMetricsDetailer(trace.DetailsAll),
-		),
-		ydbOtel.WithLogger(
-			ydbOtel.WithLogLogger(global.Logger("my-service")),
-			ydbOtel.WithLogDetailer(trace.DetailsAll),
-		),
-		ydbOtel.WithLogTraces(
-			ydbOtel.WithLogLogger(global.Logger("my-service")),
-			ydbOtel.WithLogDetailer(trace.DetailsAll),
-		),
+		ydbOtel.WithTraces(tracer, ydbOtel.WithDetailer(detailer)),
+		ydbOtel.WithMetrics(meter, ydbOtel.WithDetailer(detailer)),
+		ydbOtel.WithLogger(logger, ydbOtel.WithDetailer(detailer)),
 	)
 	if err != nil {
 		panic(err)

@@ -7,10 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
+	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/metrics"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -47,9 +46,9 @@ type metricInstrumentKey struct {
 }
 
 // MetricsConfig returns metrics registry config for OpenTelemetry instruments.
-func MetricsConfig(opts ...MetricsOption) metrics.Config {
+func MetricsConfig(meter metric.Meter, opts ...MetricsOption) metrics.Config {
 	cfg := &metricsConfig{
-		meter:        otel.Meter(meterID),
+		meter:        meter,
 		detailer:     trace.DetailsAll,
 		separator:    defaultMetricsSeparator,
 		timerBuckets: defaultTimerBuckets,
@@ -59,55 +58,15 @@ func MetricsConfig(opts ...MetricsOption) metrics.Config {
 		histograms:   map[metricInstrumentKey]metrics.HistogramVec{},
 	}
 	for _, opt := range opts {
-		opt(cfg)
+		opt.applyMetricsOption(cfg)
 	}
 
 	return cfg
 }
 
 // WithMetrics enables ydb-go-sdk metrics export via OpenTelemetry.
-func WithMetrics(opts ...MetricsOption) ydb.Option {
-	return metrics.WithTraces(MetricsConfig(opts...))
-}
-
-type MetricsOption func(*metricsConfig)
-
-func WithMeter(m metric.Meter) MetricsOption {
-	return func(c *metricsConfig) {
-		if m != nil {
-			c.meter = m
-		}
-	}
-}
-
-func WithMetricsNamespace(namespace string) MetricsOption {
-	return func(c *metricsConfig) {
-		c.namespace = namespace
-	}
-}
-
-func WithMetricsSeparator(separator string) MetricsOption {
-	return func(c *metricsConfig) {
-		c.separator = separator
-	}
-}
-
-func WithMetricsTimerBuckets(timerBuckets []float64) MetricsOption {
-	return func(c *metricsConfig) {
-		c.timerBuckets = timerBuckets
-	}
-}
-
-func WithMetricsDetails(details trace.Details) MetricsOption {
-	return func(c *metricsConfig) {
-		c.detailer = details
-	}
-}
-
-func WithMetricsDetailer(detailer trace.Detailer) MetricsOption {
-	return func(c *metricsConfig) {
-		c.detailer = detailer
-	}
+func WithMetrics(meter metric.Meter, opts ...MetricsOption) ydb.Option {
+	return metrics.WithTraces(MetricsConfig(meter, opts...))
 }
 
 func (c *metricsConfig) Details() trace.Details {

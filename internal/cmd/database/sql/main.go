@@ -93,8 +93,8 @@ func main() {
 		ydb.WithDiscoveryInterval(5*time.Second),
 		ydb.WithBalancer(balancers.PreferLocalDC(balancers.RandomChoice())),
 		ydbOtel.WithTraces(
-			ydbOtel.WithTracer(tracer),
-			ydbOtel.WithDetails(trace.DetailsAll),
+			tracer,
+			ydbOtel.WithDetailer(trace.DetailsAll),
 		),
 	)
 	if err != nil {

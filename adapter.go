@@ -9,15 +9,10 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/pkg/xslices"
 	"github.com/ydb-platform/ydb-go-sdk/v3/spans"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
-	"go.opentelemetry.io/otel"
 	otelTrace "go.opentelemetry.io/otel/trace"
 )
 
-const (
-	tracerID        = "ydb-go-sdk"
-	meterID         = "ydb-go-sdk"
-	traceIDLogField = "otel-trace-id"
-)
+const traceIDLogField = "otel-trace-id"
 
 var _ spans.Adapter = (*adapter)(nil)
 
@@ -57,15 +52,13 @@ func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...s
 	}
 }
 
-func WithTraces(opts ...Option) ydb.Option {
+func WithTraces(tracer otelTrace.Tracer, opts ...TracesOption) ydb.Option {
 	cfg := &adapter{
+		tracer:   tracer,
 		detailer: trace.DetailsAll,
 	}
 	for _, opt := range opts {
-		opt(cfg)
-	}
-	if cfg.tracer == nil {
-		cfg.tracer = otel.Tracer(tracerID)
+		opt.applyTracesOption(cfg)
 	}
 
 	return spans.WithTraces(cfg)

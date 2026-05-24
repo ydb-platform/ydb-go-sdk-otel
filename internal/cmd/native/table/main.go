@@ -88,8 +88,8 @@ func main() {
 
 	db, err := ydb.Open(ctx, os.Getenv("YDB_CONNECTION_STRING"),
 		ydbOtel.WithTraces(
-			ydbOtel.WithTracer(tracer),
-			ydbOtel.WithDetails(trace.DetailsAll),
+			tracer,
+			ydbOtel.WithDetailer(trace.DetailsAll),
 		),
 	)
 	if err != nil {

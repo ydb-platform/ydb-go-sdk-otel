@@ -86,7 +86,7 @@ func main() {
 	defer cancel()
 
 	db, err := ydb.Open(ctx, os.Getenv("YDB_CONNECTION_STRING"),
-		ydbOtel.WithTraces(),
+		ydbOtel.WithTraces(tracer),
 		ydb.WithDiscoveryInterval(time.Second),
 	)
 	if err != nil {

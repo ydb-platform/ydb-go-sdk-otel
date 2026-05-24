@@ -27,39 +27,13 @@ type loggerConfig struct {
 	logOpts  []log.Option
 }
 
-// LoggerOption configures OpenTelemetry logging for ydb-go-sdk.
-type LoggerOption func(*loggerConfig)
-
-func WithLogLogger(logger otelLog.Logger) LoggerOption {
-	return func(c *loggerConfig) {
-		c.logger = logger
-	}
-}
-
-func WithLogDetails(details trace.Details) LoggerOption {
-	return func(c *loggerConfig) {
-		c.detailer = details
-	}
-}
-
-func WithLogDetailer(detailer trace.Detailer) LoggerOption {
-	return func(c *loggerConfig) {
-		c.detailer = detailer
-	}
-}
-
-func WithLogQuery() LoggerOption {
-	return func(c *loggerConfig) {
-		c.logOpts = append(c.logOpts, log.WithLogQuery())
-	}
-}
-
-func loggerConfigFrom(opts ...LoggerOption) *loggerConfig {
+func loggerConfigFrom(logger otelLog.Logger, opts ...LoggerOption) *loggerConfig {
 	cfg := &loggerConfig{
+		logger:   logger,
 		detailer: trace.DetailsAll,
 	}
 	for _, opt := range opts {
-		opt(cfg)
+		opt.applyLoggerOption(cfg)
 	}
 	if cfg.logger == nil {
 		cfg.logger = global.Logger(loggerID)
@@ -69,30 +43,10 @@ func loggerConfigFrom(opts ...LoggerOption) *loggerConfig {
 }
 
 // WithLogger sets ydb-go-sdk logger that emits records to OpenTelemetry.
-func WithLogger(opts ...LoggerOption) ydb.Option {
-	cfg := loggerConfigFrom(opts...)
+func WithLogger(logger otelLog.Logger, opts ...LoggerOption) ydb.Option {
+	cfg := loggerConfigFrom(logger, opts...)
 
 	return ydb.WithLogger(&logAdapter{logger: cfg.logger}, cfg.detailer, cfg.logOpts...)
-}
-
-// WithLogTraces enables ydb-go-sdk trace event logging via OpenTelemetry.
-func WithLogTraces(opts ...LoggerOption) ydb.Option {
-	cfg := loggerConfigFrom(opts...)
-	a := &logAdapter{logger: cfg.logger}
-
-	return ydb.MergeOptions(
-		ydb.WithTraceDriver(log.Driver(a, cfg.detailer, cfg.logOpts...)),
-		ydb.WithTraceTable(log.Table(a, cfg.detailer, cfg.logOpts...)),
-		ydb.WithTraceQuery(log.Query(a, cfg.detailer, cfg.logOpts...)),
-		ydb.WithTraceScripting(log.Scripting(a, cfg.detailer, cfg.logOpts...)),
-		ydb.WithTraceScheme(log.Scheme(a, cfg.detailer, cfg.logOpts...)),
-		ydb.WithTraceCoordination(log.Coordination(a, cfg.detailer, cfg.logOpts...)),
-		ydb.WithTraceRatelimiter(log.Ratelimiter(a, cfg.detailer, cfg.logOpts...)),
-		ydb.WithTraceDiscovery(log.Discovery(a, cfg.detailer, cfg.logOpts...)),
-		ydb.WithTraceTopic(log.Topic(a, cfg.detailer, cfg.logOpts...)),
-		ydb.WithTraceDatabaseSQL(log.DatabaseSQL(a, cfg.detailer, cfg.logOpts...)),
-		ydb.WithTraceRetry(log.Retry(a, cfg.detailer, cfg.logOpts...)),
-	)
 }
 
 func (a *logAdapter) Log(ctx context.Context, msg string, fields ...log.Field) {
