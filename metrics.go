@@ -280,15 +280,39 @@ func (c *counterMetric) Inc() {
 type gaugeVec struct {
 	upDown     metric.Float64UpDownCounter
 	labelNames []string
+
+	mu      sync.Mutex
+	metrics map[string]*gaugeMetric
 }
 
 func (g *gaugeVec) With(labels map[string]string) metrics.Gauge {
 	attrs := labelsToAttributes(labels, g.labelNames)
 
-	return &gaugeMetric{
+	var b strings.Builder
+	for _, name := range g.labelNames {
+		b.WriteString(name)
+		b.WriteString("=")
+		b.WriteString(labels[name])
+		b.WriteString("\xff")
+	}
+	key := b.String()
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.metrics == nil {
+		g.metrics = make(map[string]*gaugeMetric)
+	}
+	if metric, ok := g.metrics[key]; ok {
+		return metric
+	}
+
+	metric := &gaugeMetric{
 		upDown: g.upDown,
 		attrs:  attrs,
 	}
+	g.metrics[key] = metric
+	return metric
 }
 
 type gaugeMetric struct {
