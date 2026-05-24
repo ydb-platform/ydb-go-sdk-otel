@@ -15,6 +15,7 @@ import (
 
 const (
 	tracerID        = "ydb-go-sdk"
+	meterID         = "ydb-go-sdk"
 	traceIDLogField = "otel-trace-id"
 )
 
