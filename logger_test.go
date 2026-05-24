@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/ydb-platform/ydb-go-sdk/v3/log"
 	otelLog "go.opentelemetry.io/otel/log"
-	"go.opentelemetry.io/otel/log/logtest"
+	"go.opentelemetry.io/otel/log/embedded"
 	otelTrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -51,8 +51,8 @@ func TestLogAdapterAddsTraceIDFromContext(t *testing.T) {
 	spanID, err := otelTrace.SpanIDFromHex("0102030405060708")
 	require.NoError(t, err)
 
-	recorder := logtest.NewRecorder()
-	adapter := &logAdapter{logger: recorder.Logger("test")}
+	capture := &captureLogger{}
+	adapter := &logAdapter{logger: capture}
 
 	ctx := otelTrace.ContextWithSpanContext(context.Background(), otelTrace.NewSpanContext(otelTrace.SpanContextConfig{
 		TraceID: traceID,
@@ -61,13 +61,11 @@ func TestLogAdapterAddsTraceIDFromContext(t *testing.T) {
 
 	adapter.Log(ctx, "hello")
 
-	scopes := recorder.Result()
-	require.Len(t, scopes, 1)
-	require.Len(t, scopes[0].Records, 1)
+	require.Len(t, capture.records, 1)
 
 	var found bool
 
-	scopes[0].Records[0].WalkAttributes(func(kv otelLog.KeyValue) bool {
+	capture.records[0].WalkAttributes(func(kv otelLog.KeyValue) bool {
 		if kv.Key == traceIDLogField && kv.Value.AsString() == traceID.String() {
 			found = true
 		}
@@ -75,4 +73,18 @@ func TestLogAdapterAddsTraceIDFromContext(t *testing.T) {
 		return true
 	})
 	require.True(t, found)
+}
+
+type captureLogger struct {
+	embedded.Logger
+
+	records []otelLog.Record
+}
+
+func (l *captureLogger) Emit(_ context.Context, record otelLog.Record) {
+	l.records = append(l.records, record)
+}
+
+func (l *captureLogger) Enabled(context.Context, otelLog.EnabledParameters) bool {
+	return true
 }
