@@ -53,6 +53,10 @@ func MetricsConfig(opts ...MetricsOption) metrics.Config {
 		detailer:     trace.DetailsAll,
 		separator:    defaultMetricsSeparator,
 		timerBuckets: defaultTimerBuckets,
+		counters:     map[metricInstrumentKey]metrics.CounterVec{},
+		gauges:       map[metricInstrumentKey]metrics.GaugeVec{},
+		timers:       map[metricInstrumentKey]metrics.TimerVec{},
+		histograms:   map[metricInstrumentKey]metrics.HistogramVec{},
 	}
 	for _, opt := range opts {
 		opt(cfg)
