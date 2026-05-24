@@ -14,8 +14,8 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
-func sliceToInterfaces[T any](v []T) []interface{} {
-	ii := make([]interface{}, len(v))
+func sliceToInterfaces[T any](v []T) []any {
+	ii := make([]any, len(v))
 	for i, vv := range v {
 		ii[i] = vv
 	}
@@ -293,7 +293,7 @@ func fillTablesWithData(ctx context.Context, db *sql.DB) (err error) {
 func prepareSchema(ctx context.Context, db *sql.DB) (err error) {
 	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) (err error) {
 		exists := true
-		err = cc.Raw(func(drvConn interface{}) (err error) {
+		err = cc.Raw(func(drvConn any) (err error) {
 			q, ok := drvConn.(interface {
 				IsTableExists(context.Context, string) (bool, error)
 			})
@@ -345,7 +345,7 @@ func prepareSchema(ctx context.Context, db *sql.DB) (err error) {
 
 	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) (err error) {
 		exists := true
-		err = cc.Raw(func(drvConn interface{}) (err error) {
+		err = cc.Raw(func(drvConn any) (err error) {
 			q, ok := drvConn.(interface {
 				IsTableExists(context.Context, string) (bool, error)
 			})
@@ -401,7 +401,7 @@ func prepareSchema(ctx context.Context, db *sql.DB) (err error) {
 
 	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) (err error) {
 		exists := true
-		err = cc.Raw(func(drvConn interface{}) (err error) {
+		err = cc.Raw(func(drvConn any) (err error) {
 			q, ok := drvConn.(interface {
 				IsTableExists(context.Context, string) (bool, error)
 			})
