@@ -109,13 +109,9 @@ func (c *metricsConfig) Details() trace.Details {
 }
 
 func (c *metricsConfig) WithSystem(subsystem string) metrics.Config {
-	return &metricsConfig{
-		meter:        c.meter,
-		detailer:     c.detailer,
-		namespace:    c.join(c.namespace, subsystem),
-		separator:    c.separator,
-		timerBuckets: c.timerBuckets,
-	}
+	cfg := *c
+	cfg.namespace = c.join(c.namespace, subsystem)
+	return &cfg
 }
 
 func (c *metricsConfig) join(a, b string) string {
