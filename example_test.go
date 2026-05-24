@@ -9,7 +9,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/log/global"
 	otelLog "go.opentelemetry.io/otel/log"
-	"go.opentelemetry.io/otel/metric"
 
 	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 )
@@ -44,7 +43,6 @@ func ExampleWithTraces() {
 func ExampleWithMetrics() {
 	// Configure global MeterProvider before opening the driver.
 	// See go.opentelemetry.io/otel/sdk/metric and OTLP metric exporters.
-	var customMeter metric.Meter // optional, defaults to otel.Meter("ydb-go-sdk")
 	connectionString := os.Getenv("YDB_CONNECTION_STRING")
 	if connectionString == "" {
 		return
@@ -54,7 +52,6 @@ func ExampleWithMetrics() {
 		context.Background(),
 		connectionString,
 		ydbOtel.WithMetrics(
-			ydbOtel.WithMeter(customMeter),
 			ydbOtel.WithMetricsDetailer(trace.DetailsAll),
 		),
 	)
