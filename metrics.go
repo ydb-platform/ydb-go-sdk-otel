@@ -38,8 +38,17 @@ type metricsConfig struct {
 }
 
 type metricInstrumentKey struct {
-	name    string
-	buckets string
+	name       string
+	buckets    string
+	labelNames string
+}
+
+func newMetricInstrumentKey(name, buckets string, labelNames []string) metricInstrumentKey {
+	return metricInstrumentKey{
+		name:       name,
+		buckets:    buckets,
+		labelNames: strings.Join(labelNames, "\xff"),
+	}
 }
 
 // metricsConfigFromOpts returns metrics registry config for OpenTelemetry instruments.
@@ -86,7 +95,7 @@ func (c *metricsConfig) WithSystem(subsystem string) metrics.Config {
 
 func (c *metricsConfig) CounterVec(name string, labelNames ...string) metrics.CounterVec {
 	instrumentName := c.instrumentName(name)
-	key := metricInstrumentKey{name: instrumentName}
+	key := newMetricInstrumentKey(instrumentName, "", labelNames)
 
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -114,7 +123,7 @@ func (c *metricsConfig) CounterVec(name string, labelNames ...string) metrics.Co
 
 func (c *metricsConfig) GaugeVec(name string, labelNames ...string) metrics.GaugeVec {
 	instrumentName := c.instrumentName(name)
-	key := metricInstrumentKey{name: instrumentName}
+	key := newMetricInstrumentKey(instrumentName, "", labelNames)
 
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -142,10 +151,7 @@ func (c *metricsConfig) GaugeVec(name string, labelNames ...string) metrics.Gaug
 
 func (c *metricsConfig) TimerVec(name string, labelNames ...string) metrics.TimerVec {
 	instrumentName := c.instrumentName(name)
-	key := metricInstrumentKey{
-		name:    instrumentName,
-		buckets: fmt.Sprintf("%v", c.timerBuckets),
-	}
+	key := newMetricInstrumentKey(instrumentName, fmt.Sprintf("%v", c.timerBuckets), labelNames)
 
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -177,10 +183,7 @@ func (c *metricsConfig) HistogramVec(name string, buckets []float64, labelNames 
 	instrumentName := c.instrumentName(name)
 
 	histogramBuckets := append([]float64(nil), buckets...)
-	key := metricInstrumentKey{
-		name:    instrumentName,
-		buckets: fmt.Sprintf("%v", histogramBuckets),
-	}
+	key := newMetricInstrumentKey(instrumentName, fmt.Sprintf("%v", histogramBuckets), labelNames)
 
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -254,16 +257,7 @@ type gaugeVec struct {
 
 func (g *gaugeVec) With(labels map[string]string) metrics.Gauge {
 	attrs := labelsToAttributes(labels, g.labelNames)
-
-	var b strings.Builder
-	for _, name := range g.labelNames {
-		b.WriteString(name)
-		b.WriteString("=")
-		b.WriteString(labels[name])
-		b.WriteString("\xff")
-	}
-
-	key := b.String()
+	key := labelsCacheKey(labels, g.labelNames)
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -393,4 +387,37 @@ func labelsToAttributes(labels map[string]string, labelNames []string) []attribu
 	}
 
 	return attrs
+}
+
+func labelsCacheKey(labels map[string]string, labelNames []string) string {
+	var b strings.Builder
+
+	for _, name := range labelNames {
+		b.WriteString(name)
+		b.WriteByte('=')
+		b.WriteString(labels[name])
+		b.WriteByte('\xff')
+	}
+
+	if len(labels) == 0 {
+		return b.String()
+	}
+
+	extra := make([]string, 0, len(labels))
+	for name := range labels {
+		if !slices.Contains(labelNames, name) {
+			extra = append(extra, name)
+		}
+	}
+
+	slices.Sort(extra)
+
+	for _, name := range extra {
+		b.WriteString(name)
+		b.WriteByte('=')
+		b.WriteString(labels[name])
+		b.WriteByte('\xff')
+	}
+
+	return b.String()
 }

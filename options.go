@@ -79,12 +79,14 @@ type timerBucketsOption struct {
 }
 
 func (o timerBucketsOption) applyMetricsOption(c *metricsConfig) {
-	c.timerBuckets = o.timerBuckets
+	c.timerBuckets = append([]float64(nil), o.timerBuckets...)
 }
 
 // WithTimerBuckets sets histogram buckets for timer metrics.
 func WithTimerBuckets(timerBuckets []float64) metricsOption {
-	return timerBucketsOption{timerBuckets: timerBuckets}
+	return timerBucketsOption{
+		timerBuckets: append([]float64(nil), timerBuckets...),
+	}
 }
 
 type logQueryOption struct{}
