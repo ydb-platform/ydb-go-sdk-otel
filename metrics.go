@@ -226,9 +226,10 @@ func (c *metricsConfig) TimerVec(name string, labelNames ...string) metrics.Time
 
 func (c *metricsConfig) HistogramVec(name string, buckets []float64, labelNames ...string) metrics.HistogramVec {
 	instrumentName := c.instrumentName(name)
+	histogramBuckets := append([]float64(nil), buckets...)
 	key := metricInstrumentKey{
 		name:    instrumentName,
-		buckets: fmt.Sprintf("%v", buckets),
+		buckets: fmt.Sprintf("%v", histogramBuckets),
 	}
 
 	c.m.Lock()
@@ -241,7 +242,7 @@ func (c *metricsConfig) HistogramVec(name string, buckets []float64, labelNames 
 	histogram, err := c.meter.Float64Histogram(
 		instrumentName,
 		metric.WithDescription("ydb-go-sdk histogram"),
-		metric.WithExplicitBucketBoundaries(buckets...),
+		metric.WithExplicitBucketBoundaries(histogramBuckets...),
 	)
 	if err != nil {
 		panic(err)
