@@ -74,7 +74,9 @@ type MetricsOption func(*metricsConfig)
 
 func WithMeter(m metric.Meter) MetricsOption {
 	return func(c *metricsConfig) {
-		c.meter = m
+		if m != nil {
+			c.meter = m
+		}
 	}
 }
 
