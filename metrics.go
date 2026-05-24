@@ -46,7 +46,7 @@ type metricInstrumentKey struct {
 }
 
 // MetricsConfig returns metrics registry config for OpenTelemetry instruments.
-func MetricsConfig(meter metric.Meter, opts ...MetricsOption) metrics.Config {
+func MetricsConfig(meter metric.Meter, opts ...metricsOption) metrics.Config {
 	cfg := &metricsConfig{
 		meter:        meter,
 		detailer:     trace.DetailsAll,
@@ -65,7 +65,7 @@ func MetricsConfig(meter metric.Meter, opts ...MetricsOption) metrics.Config {
 }
 
 // WithMetrics enables ydb-go-sdk metrics export via OpenTelemetry.
-func WithMetrics(meter metric.Meter, opts ...MetricsOption) ydb.Option {
+func WithMetrics(meter metric.Meter, opts ...metricsOption) ydb.Option {
 	return metrics.WithTraces(MetricsConfig(meter, opts...))
 }
 

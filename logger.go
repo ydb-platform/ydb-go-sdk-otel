@@ -27,7 +27,7 @@ type loggerConfig struct {
 	logOpts  []log.Option
 }
 
-func loggerConfigFrom(logger otelLog.Logger, opts ...LoggerOption) *loggerConfig {
+func loggerConfigFrom(logger otelLog.Logger, opts ...loggerOption) *loggerConfig {
 	cfg := &loggerConfig{
 		logger:   logger,
 		detailer: trace.DetailsAll,
@@ -43,7 +43,7 @@ func loggerConfigFrom(logger otelLog.Logger, opts ...LoggerOption) *loggerConfig
 }
 
 // WithLogger sets ydb-go-sdk logger that emits records to OpenTelemetry.
-func WithLogger(logger otelLog.Logger, opts ...LoggerOption) ydb.Option {
+func WithLogger(logger otelLog.Logger, opts ...loggerOption) ydb.Option {
 	cfg := loggerConfigFrom(logger, opts...)
 
 	return ydb.WithLogger(&logAdapter{logger: cfg.logger}, cfg.detailer, cfg.logOpts...)

@@ -52,7 +52,7 @@ func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...s
 	}
 }
 
-func WithTraces(tracer otelTrace.Tracer, opts ...TracesOption) ydb.Option {
+func WithTraces(tracer otelTrace.Tracer, opts ...tracesOption) ydb.Option {
 	cfg := &adapter{
 		tracer:   tracer,
 		detailer: trace.DetailsAll,

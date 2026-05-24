@@ -5,26 +5,26 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
-// TracesOption configures OpenTelemetry spans adapter.
-type TracesOption interface {
+// tracesOption configures OpenTelemetry spans adapter.
+type tracesOption interface {
 	applyTracesOption(*adapter)
 }
 
-// MetricsOption configures OpenTelemetry metrics adapter.
-type MetricsOption interface {
+// metricsOption configures OpenTelemetry metrics adapter.
+type metricsOption interface {
 	applyMetricsOption(*metricsConfig)
 }
 
-// LoggerOption configures OpenTelemetry logging adapter.
-type LoggerOption interface {
+// loggerOption configures OpenTelemetry logging adapter.
+type loggerOption interface {
 	applyLoggerOption(*loggerConfig)
 }
 
 // Option configures spans, metrics and logs adapters.
 type Option interface {
-	TracesOption
-	MetricsOption
-	LoggerOption
+	tracesOption
+	metricsOption
+	loggerOption
 }
 
 type detailerOption struct {
@@ -57,7 +57,7 @@ func (o namespaceOption) applyMetricsOption(c *metricsConfig) {
 }
 
 // WithNamespace sets metrics namespace prefix.
-func WithNamespace(namespace string) MetricsOption {
+func WithNamespace(namespace string) metricsOption {
 	return namespaceOption{namespace: namespace}
 }
 
@@ -70,7 +70,7 @@ func (o separatorOption) applyMetricsOption(c *metricsConfig) {
 }
 
 // WithSeparator sets separator for metrics namespace scopes.
-func WithSeparator(separator string) MetricsOption {
+func WithSeparator(separator string) metricsOption {
 	return separatorOption{separator: separator}
 }
 
@@ -83,7 +83,7 @@ func (o timerBucketsOption) applyMetricsOption(c *metricsConfig) {
 }
 
 // WithTimerBuckets sets histogram buckets for timer metrics.
-func WithTimerBuckets(timerBuckets []float64) MetricsOption {
+func WithTimerBuckets(timerBuckets []float64) metricsOption {
 	return timerBucketsOption{timerBuckets: timerBuckets}
 }
 
@@ -94,6 +94,6 @@ func (logQueryOption) applyLoggerOption(c *loggerConfig) {
 }
 
 // WithLogQuery enables logging of queries.
-func WithLogQuery() LoggerOption {
+func WithLogQuery() loggerOption {
 	return logQueryOption{}
 }
