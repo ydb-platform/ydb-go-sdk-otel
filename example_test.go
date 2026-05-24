@@ -18,10 +18,14 @@ func ExampleWithTraces() {
 	// Configure global TracerProvider before opening the driver.
 	// See go.opentelemetry.io/otel/sdk/trace and OTLP trace exporters.
 	tracer := otel.Tracer("my-service")
+	connectionString := os.Getenv("YDB_CONNECTION_STRING")
+	if connectionString == "" {
+		return
+	}
 
 	db, err := ydb.Open(
 		context.Background(),
-		os.Getenv("YDB_CONNECTION_STRING"),
+		connectionString,
 		ydbOtel.WithTraces(
 			ydbOtel.WithTracer(tracer),
 			ydbOtel.WithDetails(trace.DetailsAll),
@@ -41,10 +45,14 @@ func ExampleWithMetrics() {
 	// Configure global MeterProvider before opening the driver.
 	// See go.opentelemetry.io/otel/sdk/metric and OTLP metric exporters.
 	var customMeter metric.Meter // optional, defaults to otel.Meter("ydb-go-sdk")
+	connectionString := os.Getenv("YDB_CONNECTION_STRING")
+	if connectionString == "" {
+		return
+	}
 
 	db, err := ydb.Open(
 		context.Background(),
-		os.Getenv("YDB_CONNECTION_STRING"),
+		connectionString,
 		ydbOtel.WithMetrics(
 			ydbOtel.WithMeter(customMeter),
 			ydbOtel.WithMetricsDetailer(trace.DetailsAll),
@@ -64,10 +72,14 @@ func ExampleWithLogger() {
 	// Configure global LoggerProvider before opening the driver.
 	// See go.opentelemetry.io/otel/sdk/log and OTLP log exporters.
 	var customLogger otelLog.Logger // optional, defaults to global.Logger("ydb-go-sdk")
+	connectionString := os.Getenv("YDB_CONNECTION_STRING")
+	if connectionString == "" {
+		return
+	}
 
 	db, err := ydb.Open(
 		context.Background(),
-		os.Getenv("YDB_CONNECTION_STRING"),
+		connectionString,
 		ydbOtel.WithLogger(
 			ydbOtel.WithLogLogger(customLogger),
 			ydbOtel.WithLogDetailer(trace.DetailsAll),
@@ -88,10 +100,14 @@ func Example_openTelemetry() {
 	_ = global.Logger("my-service")
 	_ = otel.Tracer("my-service")
 	_ = otel.Meter("my-service")
+	connectionString := os.Getenv("YDB_CONNECTION_STRING")
+	if connectionString == "" {
+		return
+	}
 
 	db, err := ydb.Open(
 		context.Background(),
-		os.Getenv("YDB_CONNECTION_STRING"),
+		connectionString,
 		ydbOtel.WithTraces(
 			ydbOtel.WithTracer(otel.Tracer("my-service")),
 			ydbOtel.WithDetailer(trace.DetailsAll),
