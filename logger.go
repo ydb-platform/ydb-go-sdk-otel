@@ -35,6 +35,7 @@ func loggerConfigFrom(logger otelLog.Logger, opts ...loggerOption) *loggerConfig
 	for _, opt := range opts {
 		opt.applyLoggerOption(cfg)
 	}
+
 	if cfg.logger == nil {
 		cfg.logger = global.Logger(loggerID)
 	}
@@ -64,6 +65,7 @@ func (a *logAdapter) Log(ctx context.Context, msg string, fields ...log.Field) {
 	if scope := strings.Join(log.NamesFromContext(ctx), "."); scope != "" {
 		attrs = append(attrs, otelLog.String("scope", scope))
 	}
+
 	attrs = append(attrs, fieldsToLogAttributes(append(log.FieldsFromContext(ctx), fields...))...)
 	record.AddAttributes(attrs...)
 

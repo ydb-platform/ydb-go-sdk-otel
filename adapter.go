@@ -34,7 +34,7 @@ func (cfg *adapter) SpanFromContext(ctx context.Context) spans.Span {
 func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...spans.KeyValue) (
 	context.Context, spans.Span,
 ) {
-	childCtx, s := cfg.tracer.Start(ctx, operationName, //nolint:spancheck
+	childCtx, s := cfg.tracer.Start(ctx, operationName,
 		otelTrace.WithAttributes(fieldsToAttributes(fields)...),
 	)
 
@@ -47,7 +47,7 @@ func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...s
 		}
 	}
 
-	return childCtx, &span{ //nolint:spancheck
+	return childCtx, &span{
 		span: s,
 	}
 }

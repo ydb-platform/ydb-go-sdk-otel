@@ -3,6 +3,7 @@ package ydb
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -14,15 +15,11 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-const (
-	defaultMetricsSeparator = "_"
-)
+const defaultMetricsSeparator = "_"
 
-var (
-	defaultTimerBuckets = []float64{
-		0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
-	}
-)
+var defaultTimerBuckets = []float64{
+	0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
+}
 
 var _ metrics.Config = (*metricsConfig)(nil)
 
@@ -74,24 +71,17 @@ func (c *metricsConfig) Details() trace.Details {
 }
 
 func (c *metricsConfig) WithSystem(subsystem string) metrics.Config {
-	cfg := *c
-	cfg.namespace = c.join(c.namespace, subsystem)
-	return &cfg
-}
-
-func (c *metricsConfig) join(a, b string) string {
-	if a == "" {
-		return b
+	return &metricsConfig{
+		meter:        c.meter,
+		detailer:     c.detailer,
+		namespace:    c.join(c.namespace, subsystem),
+		separator:    c.separator,
+		timerBuckets: c.timerBuckets,
+		counters:     map[metricInstrumentKey]metrics.CounterVec{},
+		gauges:       map[metricInstrumentKey]metrics.GaugeVec{},
+		timers:       map[metricInstrumentKey]metrics.TimerVec{},
+		histograms:   map[metricInstrumentKey]metrics.HistogramVec{},
 	}
-	if b == "" {
-		return a
-	}
-
-	return strings.Join([]string{a, b}, c.separator)
-}
-
-func (c *metricsConfig) instrumentName(name string) string {
-	return c.join(c.namespace, name)
 }
 
 func (c *metricsConfig) CounterVec(name string, labelNames ...string) metrics.CounterVec {
@@ -185,6 +175,7 @@ func (c *metricsConfig) TimerVec(name string, labelNames ...string) metrics.Time
 
 func (c *metricsConfig) HistogramVec(name string, buckets []float64, labelNames ...string) metrics.HistogramVec {
 	instrumentName := c.instrumentName(name)
+
 	histogramBuckets := append([]float64(nil), buckets...)
 	key := metricInstrumentKey{
 		name:    instrumentName,
@@ -214,6 +205,22 @@ func (c *metricsConfig) HistogramVec(name string, buckets []float64, labelNames 
 	c.histograms[key] = h
 
 	return h
+}
+
+func (c *metricsConfig) join(a, b string) string {
+	if a == "" {
+		return b
+	}
+
+	if b == "" {
+		return a
+	}
+
+	return strings.Join([]string{a, b}, c.separator)
+}
+
+func (c *metricsConfig) instrumentName(name string) string {
+	return c.join(c.namespace, name)
 }
 
 type counterVec struct {
@@ -255,6 +262,7 @@ func (g *gaugeVec) With(labels map[string]string) metrics.Gauge {
 		b.WriteString(labels[name])
 		b.WriteString("\xff")
 	}
+
 	key := b.String()
 
 	g.mu.Lock()
@@ -263,6 +271,7 @@ func (g *gaugeVec) With(labels map[string]string) metrics.Gauge {
 	if g.metrics == nil {
 		g.metrics = make(map[string]*gaugeMetric)
 	}
+
 	if metric, ok := g.metrics[key]; ok {
 		return metric
 	}
@@ -272,6 +281,7 @@ func (g *gaugeVec) With(labels map[string]string) metrics.Gauge {
 		attrs:  attrs,
 	}
 	g.metrics[key] = metric
+
 	return metric
 }
 
@@ -299,10 +309,12 @@ func (g *gaugeMetric) Add(delta float64) {
 
 func (g *gaugeMetric) Set(value float64) {
 	g.mu.Lock()
+
 	delta := value
 	if g.hasVal {
 		delta = value - g.last
 	}
+
 	g.last = value
 	g.hasVal = true
 	g.mu.Unlock()
@@ -375,20 +387,10 @@ func labelsToAttributes(labels map[string]string, labelNames []string) []attribu
 	}
 
 	for name, value := range labels {
-		if !slicesContains(labelNames, name) {
+		if !slices.Contains(labelNames, name) {
 			attrs = append(attrs, attribute.String(name, value))
 		}
 	}
 
 	return attrs
-}
-
-func slicesContains(ss []string, s string) bool {
-	for _, v := range ss {
-		if v == s {
-			return true
-		}
-	}
-
-	return false
 }

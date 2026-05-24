@@ -13,10 +13,11 @@ import (
 	ydbOtel "github.com/ydb-platform/ydb-go-sdk-otel"
 )
 
-func ExampleWithTraces() {
+func ExampleWithTracer() {
 	// Configure global TracerProvider before opening the driver.
 	// See go.opentelemetry.io/otel/sdk/trace and OTLP trace exporters.
 	tracer := otel.Tracer("my-service")
+
 	connectionString := os.Getenv("YDB_CONNECTION_STRING")
 	if connectionString == "" {
 		return
@@ -30,6 +31,7 @@ func ExampleWithTraces() {
 	if err != nil {
 		panic(err)
 	}
+
 	defer func() {
 		_ = db.Close(context.Background())
 	}()
@@ -41,6 +43,7 @@ func ExampleWithMetrics() {
 	// Configure global MeterProvider before opening the driver.
 	// See go.opentelemetry.io/otel/sdk/metric and OTLP metric exporters.
 	meter := otel.Meter("my-service")
+
 	connectionString := os.Getenv("YDB_CONNECTION_STRING")
 	if connectionString == "" {
 		return
@@ -54,6 +57,7 @@ func ExampleWithMetrics() {
 	if err != nil {
 		panic(err)
 	}
+
 	defer func() {
 		_ = db.Close(context.Background())
 	}()
@@ -65,6 +69,7 @@ func ExampleWithLogger() {
 	// Configure global LoggerProvider before opening the driver.
 	// See go.opentelemetry.io/otel/sdk/log and OTLP log exporters.
 	var customLogger otelLog.Logger // optional, defaults to global.Logger("ydb-go-sdk")
+
 	connectionString := os.Getenv("YDB_CONNECTION_STRING")
 	if connectionString == "" {
 		return
@@ -78,6 +83,7 @@ func ExampleWithLogger() {
 	if err != nil {
 		panic(err)
 	}
+
 	defer func() {
 		_ = db.Close(context.Background())
 	}()
@@ -91,6 +97,7 @@ func Example_openTelemetry() {
 	logger := global.Logger("my-service")
 	tracer := otel.Tracer("my-service")
 	meter := otel.Meter("my-service")
+
 	connectionString := os.Getenv("YDB_CONNECTION_STRING")
 	if connectionString == "" {
 		return
@@ -106,6 +113,7 @@ func Example_openTelemetry() {
 	if err != nil {
 		panic(err)
 	}
+
 	defer func() {
 		_ = db.Close(context.Background())
 	}()

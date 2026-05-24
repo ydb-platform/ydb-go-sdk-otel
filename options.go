@@ -7,17 +7,17 @@ import (
 
 // tracesOption configures OpenTelemetry spans adapter.
 type tracesOption interface {
-	applyTracesOption(*adapter)
+	applyTracesOption(cfg *adapter)
 }
 
 // metricsOption configures OpenTelemetry metrics adapter.
 type metricsOption interface {
-	applyMetricsOption(*metricsConfig)
+	applyMetricsOption(cfg *metricsConfig)
 }
 
 // loggerOption configures OpenTelemetry logging adapter.
 type loggerOption interface {
-	applyLoggerOption(*loggerConfig)
+	applyLoggerOption(cfg *loggerConfig)
 }
 
 // Option configures spans, metrics and logs adapters.
