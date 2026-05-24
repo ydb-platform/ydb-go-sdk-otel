@@ -11,6 +11,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	otelLog "go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/log/global"
+	otelTrace "go.opentelemetry.io/otel/trace"
 )
 
 const loggerID = "ydb-go-sdk"
@@ -61,15 +62,35 @@ func (a *logAdapter) Log(ctx context.Context, msg string, fields ...log.Field) {
 	record.SetSeverityText(severityText)
 	record.SetBody(otelLog.StringValue(msg))
 
-	attrs := make([]otelLog.KeyValue, 0, len(fields)+1)
+	attrs := make([]otelLog.KeyValue, 0, len(fields)+2)
 	if scope := strings.Join(log.NamesFromContext(ctx), "."); scope != "" {
 		attrs = append(attrs, otelLog.String("scope", scope))
 	}
 
-	attrs = append(attrs, fieldsToLogAttributes(append(log.FieldsFromContext(ctx), fields...))...)
+	contextFields := append(log.FieldsFromContext(ctx), fields...)
+	if attr, ok := traceCorrelationAttribute(ctx, contextFields); ok {
+		attrs = append(attrs, attr)
+	}
+
+	attrs = append(attrs, fieldsToLogAttributes(contextFields)...)
 	record.AddAttributes(attrs...)
 
 	a.logger.Emit(ctx, record)
+}
+
+func traceCorrelationAttribute(ctx context.Context, fields []log.Field) (otelLog.KeyValue, bool) {
+	spanCtx := otelTrace.SpanContextFromContext(ctx)
+	if !spanCtx.IsValid() {
+		return otelLog.KeyValue{}, false
+	}
+
+	for _, field := range fields {
+		if field.Key() == traceIDLogField {
+			return otelLog.KeyValue{}, false
+		}
+	}
+
+	return otelLog.String(traceIDLogField, spanCtx.TraceID().String()), true
 }
 
 func severityFromLevel(level log.Level) (otelLog.Severity, string) {
