@@ -36,6 +36,8 @@ logger := global.Logger("my-service")     // go.opentelemetry.io/otel/log.Logger
 
 Use the same instrumentation scope name (for example `"my-service"`) across tracer, meter and logger so signals correlate in the backend.
 
+Pass `nil` to `WithTracer`, `WithMetrics` or `WithLogger` to use the global provider with the default scope `"ydb-go-sdk"`.
+
 See [OpenTelemetry Go documentation](https://opentelemetry.io/docs/languages/go/) and package docs:
 
 - traces: [go.opentelemetry.io/otel/sdk/trace](https://pkg.go.dev/go.opentelemetry.io/otel/sdk/trace)
@@ -104,11 +106,15 @@ ydbOtel.WithDetailer(trace.DetailsAll)
 ydbOtel.WithTracer(tracer, opts...)
 ```
 
+If `tracer` is `nil`, the adapter uses `otel.Tracer("ydb-go-sdk")`.
+
 ### Metrics
 
 ```go
 ydbOtel.WithMetrics(meter, opts...)
 ```
+
+If `meter` is `nil`, the adapter uses `otel.Meter("ydb-go-sdk")`.
 
 Additional metrics options:
 

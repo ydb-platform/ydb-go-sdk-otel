@@ -10,11 +10,8 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/log"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 	otelLog "go.opentelemetry.io/otel/log"
-	"go.opentelemetry.io/otel/log/global"
 	otelTrace "go.opentelemetry.io/otel/trace"
 )
-
-const loggerID = "ydb-go-sdk"
 
 var _ log.Logger = (*logAdapter)(nil)
 
@@ -30,21 +27,18 @@ type loggerConfig struct {
 
 func loggerConfigFrom(logger otelLog.Logger, opts ...loggerOption) *loggerConfig {
 	cfg := &loggerConfig{
-		logger:   logger,
+		logger:   loggerFrom(logger),
 		detailer: trace.DetailsAll,
 	}
 	for _, opt := range opts {
 		opt.applyLoggerOption(cfg)
 	}
 
-	if cfg.logger == nil {
-		cfg.logger = global.Logger(loggerID)
-	}
-
 	return cfg
 }
 
 // WithLogger sets ydb-go-sdk logger that emits records to OpenTelemetry.
+// If logger is nil, global.Logger("ydb-go-sdk") is used.
 func WithLogger(logger otelLog.Logger, opts ...loggerOption) ydb.Option {
 	cfg := loggerConfigFrom(logger, opts...)
 

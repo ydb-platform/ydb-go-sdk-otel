@@ -52,9 +52,11 @@ func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...s
 	}
 }
 
+// WithTracer enables ydb-go-sdk spans export via OpenTelemetry.
+// If tracer is nil, otel.Tracer("ydb-go-sdk") is used.
 func WithTracer(tracer otelTrace.Tracer, opts ...tracesOption) ydb.Option {
 	cfg := &adapter{
-		tracer:   tracer,
+		tracer:   tracerFrom(tracer),
 		detailer: trace.DetailsAll,
 	}
 	for _, opt := range opts {

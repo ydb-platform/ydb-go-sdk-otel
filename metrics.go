@@ -54,7 +54,7 @@ func newMetricInstrumentKey(name, buckets string, labelNames []string) metricIns
 // metricsConfigFromOpts returns metrics registry config for OpenTelemetry instruments.
 func metricsConfigFromOpts(meter metric.Meter, opts ...metricsOption) metrics.Config {
 	cfg := &metricsConfig{
-		meter:        meter,
+		meter:        meterFrom(meter),
 		detailer:     trace.DetailsAll,
 		separator:    defaultMetricsSeparator,
 		timerBuckets: defaultTimerBuckets,
@@ -71,6 +71,7 @@ func metricsConfigFromOpts(meter metric.Meter, opts ...metricsOption) metrics.Co
 }
 
 // WithMetrics enables ydb-go-sdk metrics export via OpenTelemetry.
+// If meter is nil, otel.Meter("ydb-go-sdk") is used.
 func WithMetrics(meter metric.Meter, opts ...metricsOption) ydb.Option {
 	return metrics.WithTraces(metricsConfigFromOpts(meter, opts...))
 }
