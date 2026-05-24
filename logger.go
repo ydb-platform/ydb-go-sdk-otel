@@ -67,7 +67,10 @@ func (a *logAdapter) Log(ctx context.Context, msg string, fields ...log.Field) {
 		attrs = append(attrs, otelLog.String("scope", scope))
 	}
 
-	contextFields := append(log.FieldsFromContext(ctx), fields...)
+	ctxFields := log.FieldsFromContext(ctx)
+	contextFields := make([]log.Field, 0, len(ctxFields)+len(fields))
+	contextFields = append(contextFields, ctxFields...)
+	contextFields = append(contextFields, fields...)
 	if attr, ok := traceCorrelationAttribute(ctx, contextFields); ok {
 		attrs = append(attrs, attr)
 	}
