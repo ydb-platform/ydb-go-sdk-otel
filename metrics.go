@@ -299,15 +299,14 @@ type gaugeMetric struct {
 }
 
 func (g *gaugeMetric) Add(delta float64) {
+	g.mu.Lock()
+	g.last += delta
+	g.hasVal = true
+	g.mu.Unlock()
+
 	if delta == 0 {
 		return
 	}
-
-	g.mu.Lock()
-	if g.hasVal {
-		g.last += delta
-	}
-	g.mu.Unlock()
 
 	g.upDown.Add(context.Background(), delta, metric.WithAttributes(g.attrs...))
 }
