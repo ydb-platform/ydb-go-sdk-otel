@@ -52,16 +52,21 @@ func (cfg *adapter) Start(ctx context.Context, operationName string, fields ...s
 	}
 }
 
-// WithTracer enables ydb-go-sdk spans export via OpenTelemetry.
-// If tracer is nil, otel.Tracer("ydb-go-sdk") is used.
-func WithTracer(tracer otelTrace.Tracer, opts ...tracesOption) ydb.Option {
-	cfg := &adapter{
+// SpansAdapter returns spans.Adapter by tracer and opts
+func SpansAdapter(tracer otelTrace.Tracer, opts ...tracesOption) spans.Adapter {
+	adapter := &adapter{
 		tracer:   tracerFrom(tracer),
 		detailer: trace.DetailsAll,
 	}
 	for _, opt := range opts {
-		opt.applyTracesOption(cfg)
+		opt.applyTracesOption(adapter)
 	}
 
-	return spans.WithTraces(cfg)
+	return adapter
+}
+
+// WithTracer enables ydb-go-sdk spans export via OpenTelemetry.
+// If tracer is nil, otel.Tracer("ydb-go-sdk") is used.
+func WithTracer(tracer otelTrace.Tracer, opts ...tracesOption) ydb.Option {
+	return spans.WithTraces(SpansAdapter(tracer, opts...))
 }
