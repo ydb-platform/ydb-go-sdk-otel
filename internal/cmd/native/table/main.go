@@ -87,9 +87,9 @@ func main() {
 	defer cancel()
 
 	db, err := ydb.Open(ctx, os.Getenv("YDB_CONNECTION_STRING"),
-		ydbOtel.WithTraces(
-			ydbOtel.WithTracer(tracer),
-			ydbOtel.WithDetails(trace.DetailsAll),
+		ydbOtel.WithTracer(
+			tracer,
+			ydbOtel.WithDetailer(trace.DetailsAll),
 		),
 	)
 	if err != nil {
@@ -180,13 +180,14 @@ func upsertData(ctx context.Context, c table.Client, prefix, tableName string, r
 	batchSize := int64(1000)
 	for shift := int64(0); shift < rowsLen; shift += batchSize {
 		rows := make([]types.Value, 0, batchSize)
-		for i := int64(0); i < batchSize; i++ {
+		for i := range int(batchSize) {
+			idx := int64(i)
 			rows = append(rows, types.StructValue(
-				types.StructFieldValue("series_id", types.Uint64Value(uint64(i+shift+3))),
-				types.StructFieldValue("title", types.UTF8Value(fmt.Sprintf("series No. %d title", i+shift+3))),
-				types.StructFieldValue("series_info", types.UTF8Value(fmt.Sprintf("series No. %d info", i+shift+3))),
+				types.StructFieldValue("series_id", types.Uint64Value(uint64(idx+shift+3))),
+				types.StructFieldValue("title", types.UTF8Value(fmt.Sprintf("series No. %d title", idx+shift+3))),
+				types.StructFieldValue("series_info", types.UTF8Value(fmt.Sprintf("series No. %d info", idx+shift+3))),
 				types.StructFieldValue("release_date", types.DateValueFromTime(time.Now())),
-				types.StructFieldValue("comment", types.UTF8Value(fmt.Sprintf("series No. %d comment", i+shift+3))),
+				types.StructFieldValue("comment", types.UTF8Value(fmt.Sprintf("series No. %d comment", idx+shift+3))),
 			))
 		}
 		err = c.Do(ctx,
