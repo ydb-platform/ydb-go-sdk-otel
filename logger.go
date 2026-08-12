@@ -9,6 +9,7 @@ import (
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/log"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+	"go.opentelemetry.io/otel/attribute"
 	otelLog "go.opentelemetry.io/otel/log"
 	otelTrace "go.opentelemetry.io/otel/trace"
 )
@@ -54,11 +55,11 @@ func (a *logAdapter) Log(ctx context.Context, msg string, fields ...log.Field) {
 	record.SetObservedTimestamp(now)
 	record.SetSeverity(severity)
 	record.SetSeverityText(severityText)
-	record.SetBody(otelLog.StringValue(msg))
+	record.SetBody(attribute.StringValue(msg))
 
-	attrs := make([]otelLog.KeyValue, 0, len(fields)+2)
+	attrs := make([]attribute.KeyValue, 0, len(fields)+2)
 	if scope := strings.Join(log.NamesFromContext(ctx), "."); scope != "" {
-		attrs = append(attrs, otelLog.String("scope", scope))
+		attrs = append(attrs, attribute.String("scope", scope))
 	}
 
 	ctxFields := log.FieldsFromContext(ctx)
@@ -75,19 +76,19 @@ func (a *logAdapter) Log(ctx context.Context, msg string, fields ...log.Field) {
 	a.logger.Emit(ctx, record)
 }
 
-func traceCorrelationAttribute(ctx context.Context, fields []log.Field) (otelLog.KeyValue, bool) {
+func traceCorrelationAttribute(ctx context.Context, fields []log.Field) (attribute.KeyValue, bool) {
 	spanCtx := otelTrace.SpanContextFromContext(ctx)
 	if !spanCtx.IsValid() {
-		return otelLog.KeyValue{}, false
+		return attribute.KeyValue{}, false
 	}
 
 	for _, field := range fields {
 		if field.Key() == traceIDLogField {
-			return otelLog.KeyValue{}, false
+			return attribute.KeyValue{}, false
 		}
 	}
 
-	return otelLog.String(traceIDLogField, spanCtx.TraceID().String()), true
+	return attribute.String(traceIDLogField, spanCtx.TraceID().String()), true
 }
 
 func severityFromLevel(level log.Level) (otelLog.Severity, string) {
@@ -109,8 +110,8 @@ func severityFromLevel(level log.Level) (otelLog.Severity, string) {
 	}
 }
 
-func fieldsToLogAttributes(fields []log.Field) []otelLog.KeyValue {
-	attrs := make([]otelLog.KeyValue, len(fields))
+func fieldsToLogAttributes(fields []log.Field) []attribute.KeyValue {
+	attrs := make([]attribute.KeyValue, len(fields))
 	for i, field := range fields {
 		attrs[i] = fieldToLogAttribute(field)
 	}
@@ -118,38 +119,38 @@ func fieldsToLogAttributes(fields []log.Field) []otelLog.KeyValue {
 	return attrs
 }
 
-func fieldToLogAttribute(field log.Field) otelLog.KeyValue {
+func fieldToLogAttribute(field log.Field) attribute.KeyValue {
 	switch field.Type() {
 	case log.IntType:
-		return otelLog.Int(field.Key(), field.IntValue())
+		return attribute.Int(field.Key(), field.IntValue())
 	case log.Int64Type:
-		return otelLog.Int64(field.Key(), field.Int64Value())
+		return attribute.Int64(field.Key(), field.Int64Value())
 	case log.StringType:
-		return otelLog.String(field.Key(), field.StringValue())
+		return attribute.String(field.Key(), field.StringValue())
 	case log.BoolType:
-		return otelLog.Bool(field.Key(), field.BoolValue())
+		return attribute.Bool(field.Key(), field.BoolValue())
 	case log.DurationType:
-		return otelLog.Int64(field.Key(), field.DurationValue().Nanoseconds())
+		return attribute.Int64(field.Key(), field.DurationValue().Nanoseconds())
 	case log.StringsType:
-		return otelLog.Slice(field.Key(), stringSliceValues(field.StringsValue())...)
+		return attribute.Slice(field.Key(), stringSliceValues(field.StringsValue())...)
 	case log.ErrorType:
 		err := field.ErrorValue()
 		if err == nil {
-			return otelLog.String(field.Key(), "")
+			return attribute.String(field.Key(), "")
 		}
 
-		return otelLog.String(field.Key(), err.Error())
+		return attribute.String(field.Key(), err.Error())
 	case log.StringerType:
-		return otelLog.String(field.Key(), field.Stringer().String())
+		return attribute.String(field.Key(), field.Stringer().String())
 	default:
-		return otelLog.String(field.Key(), fmt.Sprintf("%v", field.AnyValue()))
+		return attribute.String(field.Key(), fmt.Sprintf("%v", field.AnyValue()))
 	}
 }
 
-func stringSliceValues(values []string) []otelLog.Value {
-	result := make([]otelLog.Value, len(values))
+func stringSliceValues(values []string) []attribute.Value {
+	result := make([]attribute.Value, len(values))
 	for i, value := range values {
-		result[i] = otelLog.StringValue(value)
+		result[i] = attribute.StringValue(value)
 	}
 
 	return result

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/ydb-platform/ydb-go-sdk/v3/log"
+	"go.opentelemetry.io/otel/attribute"
 	otelLog "go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/log/embedded"
 	otelTrace "go.opentelemetry.io/otel/trace"
@@ -24,7 +25,7 @@ func TestTraceCorrelationAttributeFromContext(t *testing.T) {
 
 	attr, ok := traceCorrelationAttribute(ctx, nil)
 	require.True(t, ok)
-	require.Equal(t, traceIDLogField, attr.Key)
+	require.Equal(t, attribute.Key(traceIDLogField), attr.Key)
 	require.Equal(t, traceID.String(), attr.Value.AsString())
 }
 
@@ -65,7 +66,7 @@ func TestLogAdapterAddsTraceIDFromContext(t *testing.T) {
 
 	var found bool
 
-	capture.records[0].WalkAttributes(func(kv otelLog.KeyValue) bool {
+	capture.records[0].WalkAttributes(func(kv attribute.KeyValue) bool {
 		if kv.Key == traceIDLogField && kv.Value.AsString() == traceID.String() {
 			found = true
 		}
