@@ -128,12 +128,8 @@ OpenTelemetry, counters use `Int64Counter` (including batched `Add`), and
 gauges use `Float64UpDownCounter`. Legacy SDK metrics keep their scoped names
 and `Int64Counter` behavior.
 
-Observable instruments use genuine `Float64ObservableGauge` callbacks evaluated
-at collection time; the regular `Gauge` remains mapped to
-`Float64UpDownCounter`.
-
-Observable gauge descriptors require an SDK release that exposes
-`RegistryWithObservableGaugeDescriptors`.
+Descriptor instruments omit attributes the SDK does not supply, such as
+`consumer` for a consumerless reader.
 
 ### Logs
 

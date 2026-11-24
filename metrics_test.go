@@ -10,6 +10,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/noop"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 func TestCounterVecDifferentLabelNamesNotCachedTogether(t *testing.T) {
@@ -55,8 +57,8 @@ func TestLabelsCacheKeyIncludesExtraLabels(t *testing.T) {
 }
 
 func TestDescriptorCounterUsesExactInt64Instrument(t *testing.T) {
-	meter := &recordingMeter{}
-	cfg := metricsConfigFromOpts(meter, WithNamespace("custom"), WithSeparator("."))
+	meter, reader := manualMeter(t)
+	cfg := metricsConfigFromOpts(meter, WithNamespace("custom"), WithSeparator("_"))
 	scoped := cfg.WithSystem("topic")
 	descriptorConfig, ok := scoped.(interface {
 		CounterVecWithDescriptor(name, unit string, labelNames ...string) ydbmetrics.CounterVec
@@ -64,7 +66,7 @@ func TestDescriptorCounterUsesExactInt64Instrument(t *testing.T) {
 	require.True(t, ok)
 
 	vec := descriptorConfig.CounterVecWithDescriptor(
-		"ydb.topic.reader.received.bytes", "By", "endpoint", "database",
+		"ydb.topic.reader.received.bytes", "By", "endpoint", "database", "consumer",
 	)
 	counter := vec.With(map[string]string{"endpoint": "node", "database": "/db"})
 	adder, ok := counter.(interface{ Add(delta int64) })
@@ -74,19 +76,20 @@ func TestDescriptorCounterUsesExactInt64Instrument(t *testing.T) {
 	adder.Add(1 << 20)
 	counter.Inc()
 
-	require.Len(t, meter.int64Counters, 1)
-	instrument := meter.int64Counters[0]
-	require.Equal(t, "ydb.topic.reader.received.bytes", instrument.name)
-	require.Equal(t, "By", instrument.unit)
-	require.Equal(t, []int64{largeDelta, 1 << 20, 1}, instrument.adds)
-	require.Equal(t, []attribute.KeyValue{
-		attribute.String("database", "/db"),
-		attribute.String("endpoint", "node"),
-	}, instrument.attrs[0])
+	instrument := collectMetric(t, reader)
+	require.Equal(t, "ydb.topic.reader.received.bytes", instrument.Name)
+	require.Equal(t, "By", instrument.Unit)
+	sum, ok := instrument.Data.(metricdata.Sum[int64])
+	require.True(t, ok)
+	require.True(t, sum.IsMonotonic)
+	require.Len(t, sum.DataPoints, 1)
+	require.Equal(t, largeDelta+(1<<20)+1, sum.DataPoints[0].Value)
+	require.Equal(t, attribute.NewSet(attribute.String("database", "/db"), attribute.String("endpoint", "node")),
+		sum.DataPoints[0].Attributes)
 }
 
 func TestLegacyCounterUsesInt64Instrument(t *testing.T) {
-	meter := &recordingMeter{}
+	meter, reader := manualMeter(t)
 	cfg := metricsConfigFromOpts(meter, WithNamespace("custom"), WithSeparator("."))
 	scoped, ok := cfg.WithSystem("topic").(*metricsConfig)
 	require.True(t, ok)
@@ -94,10 +97,13 @@ func TestLegacyCounterUsesInt64Instrument(t *testing.T) {
 	vec := scoped.CounterVec("requests", "status")
 	vec.With(map[string]string{"status": "ok"}).Inc()
 
-	require.Len(t, meter.int64Counters, 1)
-	require.Equal(t, "custom.topic.requests", meter.int64Counters[0].name)
-	require.Empty(t, meter.int64Counters[0].unit)
-	require.Equal(t, []int64{1}, meter.int64Counters[0].adds)
+	instrument := collectMetric(t, reader)
+	require.Equal(t, "custom.topic.requests", instrument.Name)
+	require.Empty(t, instrument.Unit)
+	sum, ok := instrument.Data.(metricdata.Sum[int64])
+	require.True(t, ok)
+	require.Len(t, sum.DataPoints, 1)
+	require.EqualValues(t, 1, sum.DataPoints[0].Value)
 }
 
 func TestDescriptorCacheSharesEquivalentInstruments(t *testing.T) {
@@ -105,27 +111,27 @@ func TestDescriptorCacheSharesEquivalentInstruments(t *testing.T) {
 	cfg, ok := metricsConfigFromOpts(meter).(*metricsConfig)
 	require.True(t, ok)
 
-	legacy := cfg.CounterVec("same", "label")
-	require.Same(t, legacy, cfg.CounterVec("same", "label"))
+	legacy := cfg.CounterVec("same")
+	require.Same(t, legacy, cfg.CounterVec("same"))
 
-	descriptorEmpty := cfg.CounterVecWithDescriptor("same", "", "label")
-	require.Same(t, descriptorEmpty, cfg.CounterVecWithDescriptor("same", "", "label"))
+	descriptorEmpty := cfg.CounterVecWithDescriptor("same", "")
+	require.Same(t, descriptorEmpty, cfg.CounterVecWithDescriptor("same", ""))
 	require.Same(t, legacy, descriptorEmpty)
 
-	descriptorBy := cfg.CounterVecWithDescriptor("same", "By", "label")
+	descriptorBy := cfg.CounterVecWithDescriptor("same", "By")
 	require.NotSame(t, descriptorEmpty, descriptorBy)
-	require.Len(t, meter.int64Counters, 2)
+	require.Equal(t, 2, meter.int64Counters)
 
-	legacyGauge := cfg.GaugeVec("gauge", "label")
-	require.Same(t, legacyGauge, cfg.GaugeVec("gauge", "label"))
-	descriptorGaugeEmpty := cfg.GaugeVecWithDescriptor("gauge", "", "label")
-	require.Same(t, descriptorGaugeEmpty, cfg.GaugeVecWithDescriptor("gauge", "", "label"))
+	legacyGauge := cfg.GaugeVec("gauge")
+	require.Same(t, legacyGauge, cfg.GaugeVec("gauge"))
+	descriptorGaugeEmpty := cfg.GaugeVecWithDescriptor("gauge", "")
+	require.Same(t, descriptorGaugeEmpty, cfg.GaugeVecWithDescriptor("gauge", ""))
 	require.Same(t, legacyGauge, descriptorGaugeEmpty)
 	labels := map[string]string{"label": "value"}
 	legacyGauge.With(labels).Set(10)
 	descriptorGaugeEmpty.With(labels).Set(20)
-	require.Equal(t, []float64{10, 10}, measurementValues(meter.upDownCounters[0].adds))
-	require.NotSame(t, descriptorGaugeEmpty, cfg.GaugeVecWithDescriptor("gauge", "By", "label"))
+	require.Equal(t, []float64{10, 10}, meter.upDownCounters[0].adds)
+	require.NotSame(t, descriptorGaugeEmpty, cfg.GaugeVecWithDescriptor("gauge", "By"))
 }
 
 func TestMetricFactoriesShareVectorDuringConcurrentCreation(t *testing.T) {
@@ -140,9 +146,6 @@ func TestMetricFactoriesShareVectorDuringConcurrentCreation(t *testing.T) {
 		{name: "gauge", create: func(c *metricsConfig) any { return c.GaugeVec("metric") }},
 		{name: "descriptor gauge", create: func(c *metricsConfig) any {
 			return c.GaugeVecWithDescriptor("metric", "1")
-		}},
-		{name: "observable gauge", create: func(c *metricsConfig) any {
-			return c.ObservableGaugeVecWithDescriptor("metric", "1")
 		}},
 		{name: "timer", create: func(c *metricsConfig) any { return c.TimerVec("metric") }},
 		{name: "histogram", create: func(c *metricsConfig) any { return c.HistogramVec("metric", nil) }},
@@ -179,95 +182,86 @@ func TestMetricFactoriesShareVectorDuringConcurrentCreation(t *testing.T) {
 	}
 }
 
-func TestDescriptorGaugeUsesSignedFloat64Adds(t *testing.T) {
-	meter := &recordingMeter{}
-	cfg := metricsConfigFromOpts(meter, WithNamespace("custom"), WithSeparator("."))
+func TestDescriptorGaugeExportsCompensatedBalance(t *testing.T) {
+	meter, reader := manualMeter(t)
+	cfg := metricsConfigFromOpts(meter, WithNamespace("custom"), WithSeparator("_"))
 	scoped := cfg.WithSystem("topic")
 	descriptorConfig, ok := scoped.(interface {
 		GaugeVecWithDescriptor(name, unit string, labelNames ...string) ydbmetrics.GaugeVec
 	})
 	require.True(t, ok)
 	vec := descriptorConfig.GaugeVecWithDescriptor(
-		"ydb.topic.reader.credit_balance_bytes", "By", "endpoint",
+		"ydb.topic.reader.credit_balance_bytes", "By", "endpoint", "consumer",
 	)
 
-	vec.With(map[string]string{"endpoint": "node"}).Add(5)
-	vec.With(map[string]string{"endpoint": "node"}).Add(-2)
+	vec.With(map[string]string{"endpoint": "node", "consumer": ""}).Add(3)
+	vec.With(map[string]string{"endpoint": "node"}).Add(7)
+	vec.With(map[string]string{"endpoint": "node"}).Add(-7)
 
-	require.Len(t, meter.upDownCounters, 1)
-	instrument := meter.upDownCounters[0]
-	require.Equal(t, "ydb.topic.reader.credit_balance_bytes", instrument.name)
-	require.Equal(t, "By", instrument.unit)
-	require.Equal(t, []float64{5, -2}, measurementValues(instrument.adds))
-	require.Equal(t, []attribute.KeyValue{attribute.String("endpoint", "node")}, instrument.adds[0].attrs)
+	instrument := collectMetric(t, reader)
+	require.Equal(t, "ydb.topic.reader.credit_balance_bytes", instrument.Name)
+	require.Equal(t, "By", instrument.Unit)
+	sum, ok := instrument.Data.(metricdata.Sum[float64])
+	require.True(t, ok)
+	require.False(t, sum.IsMonotonic)
+	require.Len(t, sum.DataPoints, 2)
+	values := make(map[attribute.Distinct]float64, len(sum.DataPoints))
+	for _, point := range sum.DataPoints {
+		values[point.Attributes.Equivalent()] = point.Value
+	}
+	omitted := attribute.NewSet(attribute.String("endpoint", "node"))
+	explicit := attribute.NewSet(attribute.String("endpoint", "node"), attribute.String("consumer", ""))
+	require.Equal(t, map[attribute.Distinct]float64{omitted.Equivalent(): 0, explicit.Equivalent(): 3}, values)
+}
+
+func manualMeter(t *testing.T) (metric.Meter, *sdkmetric.ManualReader) {
+	reader := sdkmetric.NewManualReader()
+	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	t.Cleanup(func() { require.NoError(t, provider.Shutdown(context.Background())) })
+
+	return provider.Meter("test"), reader
+}
+
+func collectMetric(t *testing.T, reader *sdkmetric.ManualReader) metricdata.Metrics {
+	var data metricdata.ResourceMetrics
+	require.NoError(t, reader.Collect(context.Background(), &data))
+	require.Len(t, data.ScopeMetrics, 1)
+	require.Len(t, data.ScopeMetrics[0].Metrics, 1)
+
+	return data.ScopeMetrics[0].Metrics[0]
 }
 
 type recordingMeter struct {
 	noop.Meter
 
-	int64Counters  []*recordingInt64Counter
+	int64Counters  int
 	upDownCounters []*recordingFloat64UpDownCounter
 }
 
-func (m *recordingMeter) Int64Counter(name string, options ...metric.Int64CounterOption) (metric.Int64Counter, error) {
-	config := metric.NewInt64CounterConfig(options...)
-	counter := &recordingInt64Counter{name: name, unit: config.Unit()}
-	m.int64Counters = append(m.int64Counters, counter)
+func (m *recordingMeter) Int64Counter(name string, opts ...metric.Int64CounterOption) (metric.Int64Counter, error) {
+	m.int64Counters++
 
-	return counter, nil
+	return m.Meter.Int64Counter(name, opts...)
 }
 
 func (m *recordingMeter) Float64UpDownCounter(
-	name string,
-	options ...metric.Float64UpDownCounterOption,
+	_ string,
+	_ ...metric.Float64UpDownCounterOption,
 ) (metric.Float64UpDownCounter, error) {
-	config := metric.NewFloat64UpDownCounterConfig(options...)
-	counter := &recordingFloat64UpDownCounter{name: name, unit: config.Unit()}
+	counter := &recordingFloat64UpDownCounter{}
 	m.upDownCounters = append(m.upDownCounters, counter)
 
 	return counter, nil
 }
 
-type recordingInt64Counter struct {
-	noop.Int64Counter
-
-	name  string
-	unit  string
-	adds  []int64
-	attrs [][]attribute.KeyValue
-}
-
-func (c *recordingInt64Counter) Add(_ context.Context, value int64, options ...metric.AddOption) {
-	c.adds = append(c.adds, value)
-	attrs := metric.NewAddConfig(options).Attributes()
-	c.attrs = append(c.attrs, attrs.ToSlice())
-}
-
-type recordingMeasurement struct {
-	value float64
-	attrs []attribute.KeyValue
-}
-
 type recordingFloat64UpDownCounter struct {
 	noop.Float64UpDownCounter
 
-	name string
-	unit string
-	adds []recordingMeasurement
+	adds []float64
 }
 
-func (c *recordingFloat64UpDownCounter) Add(_ context.Context, value float64, options ...metric.AddOption) {
-	attrs := metric.NewAddConfig(options).Attributes()
-	c.adds = append(c.adds, recordingMeasurement{value: value, attrs: attrs.ToSlice()})
-}
-
-func measurementValues(measurements []recordingMeasurement) []float64 {
-	values := make([]float64, 0, len(measurements))
-	for _, measurement := range measurements {
-		values = append(values, measurement.value)
-	}
-
-	return values
+func (c *recordingFloat64UpDownCounter) Add(_ context.Context, value float64, _ ...metric.AddOption) {
+	c.adds = append(c.adds, value)
 }
 
 type blockingMetricMeter struct {
@@ -292,15 +286,6 @@ func (m *blockingMetricMeter) Float64UpDownCounter(
 	m.beforeCreate()
 
 	return m.Meter.Float64UpDownCounter(name, opts...)
-}
-
-func (m *blockingMetricMeter) Float64ObservableGauge(
-	name string,
-	opts ...metric.Float64ObservableGaugeOption,
-) (metric.Float64ObservableGauge, error) {
-	m.beforeCreate()
-
-	return m.Meter.Float64ObservableGauge(name, opts...)
 }
 
 func (m *blockingMetricMeter) Float64Histogram(
