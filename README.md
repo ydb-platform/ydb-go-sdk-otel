@@ -122,14 +122,18 @@ Additional metrics options:
 - `WithSeparator(sep)` — scope separator (default `_`)
 - `WithTimerBuckets(buckets)` — histogram buckets for timers
 
-Topic reader and listener metrics use descriptor-aware instruments when the SDK
-requests them: descriptor names are used verbatim, units are passed to
-OpenTelemetry, counters use `Int64Counter` (including batched `Add`), and
-gauges use `Float64UpDownCounter`. Legacy SDK metrics keep their scoped names
-and `Int64Counter` behavior.
+Topic reader and listener metrics use descriptor-aware instruments only with a
+`ydb-go-sdk` release that calls the descriptor methods (introduced in
+`ydb-go-sdk` PR #2283). The SDK version currently pinned in `go.mod` does not
+call them. With a compatible SDK, descriptor names are used verbatim, units
+are passed to OpenTelemetry, counters use `Int64Counter` (including batched
+`Add`), and gauges use `Float64UpDownCounter`. Legacy SDK metrics keep their
+scoped names and `Int64Counter` behavior.
 
-Descriptor instruments omit attributes the SDK does not supply, such as
-`consumer` for a consumerless reader.
+Descriptor instruments bind only the attributes the SDK supplies, such as
+omitting `consumer` for a consumerless reader. Within an adapter, vectors of
+the same kind and instrument name use the first registration's unit. Gauge
+handles with identical bound attributes update the same series.
 
 ### Logs
 
