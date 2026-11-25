@@ -32,8 +32,8 @@ type metricsConfig struct {
 	timerBuckets []float64
 
 	m          sync.Mutex
-	counters   map[metricInstrumentKey]metrics.CounterVec
-	gauges     map[metricInstrumentKey]metrics.GaugeVec
+	counters   *vectorCache[metrics.CounterVec]
+	gauges     *vectorCache[metrics.GaugeVec]
 	timers     map[metricInstrumentKey]metrics.TimerVec
 	histograms map[metricInstrumentKey]metrics.HistogramVec
 }
@@ -59,8 +59,8 @@ func metricsConfigFromOpts(meter metric.Meter, opts ...metricsOption) metrics.Co
 		detailer:     trace.DetailsAll,
 		separator:    defaultMetricsSeparator,
 		timerBuckets: defaultTimerBuckets,
-		counters:     map[metricInstrumentKey]metrics.CounterVec{},
-		gauges:       map[metricInstrumentKey]metrics.GaugeVec{},
+		counters:     &vectorCache[metrics.CounterVec]{},
+		gauges:       &vectorCache[metrics.GaugeVec]{},
 		timers:       map[metricInstrumentKey]metrics.TimerVec{},
 		histograms:   map[metricInstrumentKey]metrics.HistogramVec{},
 	}
@@ -88,67 +88,11 @@ func (c *metricsConfig) WithSystem(subsystem string) metrics.Config {
 		namespace:    c.join(c.namespace, subsystem),
 		separator:    c.separator,
 		timerBuckets: c.timerBuckets,
-		counters:     map[metricInstrumentKey]metrics.CounterVec{},
-		gauges:       map[metricInstrumentKey]metrics.GaugeVec{},
+		counters:     c.counters,
+		gauges:       c.gauges,
 		timers:       map[metricInstrumentKey]metrics.TimerVec{},
 		histograms:   map[metricInstrumentKey]metrics.HistogramVec{},
 	}
-}
-
-func (c *metricsConfig) CounterVec(name string, labelNames ...string) metrics.CounterVec {
-	instrumentName := c.instrumentName(name)
-	key := newMetricInstrumentKey(instrumentName, "", labelNames)
-
-	c.m.Lock()
-	defer c.m.Unlock()
-
-	if cnt, ok := c.counters[key]; ok {
-		return cnt
-	}
-
-	counter, err := c.meter.Int64Counter(
-		instrumentName,
-		metric.WithDescription("ydb-go-sdk counter"),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	cnt := &counterVec{
-		counter:    counter,
-		labelNames: labelNames,
-	}
-	c.counters[key] = cnt
-
-	return cnt
-}
-
-func (c *metricsConfig) GaugeVec(name string, labelNames ...string) metrics.GaugeVec {
-	instrumentName := c.instrumentName(name)
-	key := newMetricInstrumentKey(instrumentName, "", labelNames)
-
-	c.m.Lock()
-	defer c.m.Unlock()
-
-	if g, ok := c.gauges[key]; ok {
-		return g
-	}
-
-	upDown, err := c.meter.Float64UpDownCounter(
-		instrumentName,
-		metric.WithDescription("ydb-go-sdk gauge"),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	g := &gaugeVec{
-		upDown:     upDown,
-		labelNames: labelNames,
-	}
-	c.gauges[key] = g
-
-	return g
 }
 
 func (c *metricsConfig) TimerVec(name string, labelNames ...string) metrics.TimerVec {
@@ -156,10 +100,10 @@ func (c *metricsConfig) TimerVec(name string, labelNames ...string) metrics.Time
 	key := newMetricInstrumentKey(instrumentName, fmt.Sprintf("%v", c.timerBuckets), labelNames)
 
 	c.m.Lock()
-	defer c.m.Unlock()
-
-	if t, ok := c.timers[key]; ok {
-		return t
+	cached, ok := c.timers[key]
+	c.m.Unlock()
+	if ok {
+		return cached
 	}
 
 	histogram, err := c.meter.Float64Histogram(
@@ -170,6 +114,12 @@ func (c *metricsConfig) TimerVec(name string, labelNames ...string) metrics.Time
 	)
 	if err != nil {
 		panic(err)
+	}
+
+	c.m.Lock()
+	defer c.m.Unlock()
+	if cached, ok := c.timers[key]; ok {
+		return cached
 	}
 
 	t := &timerVec{
@@ -188,10 +138,10 @@ func (c *metricsConfig) HistogramVec(name string, buckets []float64, labelNames 
 	key := newMetricInstrumentKey(instrumentName, fmt.Sprintf("%v", histogramBuckets), labelNames)
 
 	c.m.Lock()
-	defer c.m.Unlock()
-
-	if h, ok := c.histograms[key]; ok {
-		return h
+	cached, ok := c.histograms[key]
+	c.m.Unlock()
+	if ok {
+		return cached
 	}
 
 	histogram, err := c.meter.Float64Histogram(
@@ -201,6 +151,12 @@ func (c *metricsConfig) HistogramVec(name string, buckets []float64, labelNames 
 	)
 	if err != nil {
 		panic(err)
+	}
+
+	c.m.Lock()
+	defer c.m.Unlock()
+	if cached, ok := c.histograms[key]; ok {
+		return cached
 	}
 
 	h := &histogramVec{
@@ -226,100 +182,6 @@ func (c *metricsConfig) join(a, b string) string {
 
 func (c *metricsConfig) instrumentName(name string) string {
 	return c.join(c.namespace, name)
-}
-
-type counterVec struct {
-	counter    metric.Int64Counter
-	labelNames []string
-}
-
-func (c *counterVec) With(labels map[string]string) metrics.Counter {
-	return &counterMetric{
-		counter: c.counter,
-		attrs:   labelsToAttributes(labels, c.labelNames),
-	}
-}
-
-type counterMetric struct {
-	counter metric.Int64Counter
-	attrs   []attribute.KeyValue
-}
-
-func (c *counterMetric) Inc() {
-	c.counter.Add(context.Background(), 1, metric.WithAttributes(c.attrs...))
-}
-
-type gaugeVec struct {
-	upDown     metric.Float64UpDownCounter
-	labelNames []string
-
-	mu      sync.Mutex
-	metrics map[string]*gaugeMetric
-}
-
-func (g *gaugeVec) With(labels map[string]string) metrics.Gauge {
-	attrs := labelsToAttributes(labels, g.labelNames)
-	key := labelsCacheKey(labels, g.labelNames)
-
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	if g.metrics == nil {
-		g.metrics = make(map[string]*gaugeMetric)
-	}
-
-	if metric, ok := g.metrics[key]; ok {
-		return metric
-	}
-
-	metric := &gaugeMetric{
-		upDown: g.upDown,
-		attrs:  attrs,
-	}
-	g.metrics[key] = metric
-
-	return metric
-}
-
-type gaugeMetric struct {
-	mu     sync.Mutex
-	last   float64
-	hasVal bool
-
-	upDown metric.Float64UpDownCounter
-	attrs  []attribute.KeyValue
-}
-
-func (g *gaugeMetric) Add(delta float64) {
-	g.mu.Lock()
-	g.last += delta
-	g.hasVal = true
-	g.mu.Unlock()
-
-	if delta == 0 {
-		return
-	}
-
-	g.upDown.Add(context.Background(), delta, metric.WithAttributes(g.attrs...))
-}
-
-func (g *gaugeMetric) Set(value float64) {
-	g.mu.Lock()
-
-	delta := value
-	if g.hasVal {
-		delta = value - g.last
-	}
-
-	g.last = value
-	g.hasVal = true
-	g.mu.Unlock()
-
-	if delta == 0 {
-		return
-	}
-
-	g.upDown.Add(context.Background(), delta, metric.WithAttributes(g.attrs...))
 }
 
 type timerVec struct {
@@ -369,7 +231,7 @@ func labelsToAttributes(labels map[string]string, labelNames []string) []attribu
 		return nil
 	}
 
-	attrs := make([]attribute.KeyValue, 0, len(labelNames))
+	attrs := make([]attribute.KeyValue, 0, max(len(labelNames), len(labels)))
 	if len(labels) == 0 {
 		for _, name := range labelNames {
 			attrs = append(attrs, attribute.String(name, ""))
@@ -389,37 +251,4 @@ func labelsToAttributes(labels map[string]string, labelNames []string) []attribu
 	}
 
 	return attrs
-}
-
-func labelsCacheKey(labels map[string]string, labelNames []string) string {
-	var b strings.Builder
-
-	for _, name := range labelNames {
-		b.WriteString(name)
-		b.WriteByte('=')
-		b.WriteString(labels[name])
-		b.WriteByte('\xff')
-	}
-
-	if len(labels) == 0 {
-		return b.String()
-	}
-
-	extra := make([]string, 0, len(labels))
-	for name := range labels {
-		if !slices.Contains(labelNames, name) {
-			extra = append(extra, name)
-		}
-	}
-
-	slices.Sort(extra)
-
-	for _, name := range extra {
-		b.WriteString(name)
-		b.WriteByte('=')
-		b.WriteString(labels[name])
-		b.WriteByte('\xff')
-	}
-
-	return b.String()
 }
