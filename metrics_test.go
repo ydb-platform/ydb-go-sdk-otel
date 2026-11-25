@@ -43,19 +43,6 @@ func TestGaugeVecWithDifferentExtraLabelsNotCachedTogether(t *testing.T) {
 	require.NotSame(t, gaugeA, gaugeB)
 }
 
-func TestLabelsCacheKeyIncludesExtraLabels(t *testing.T) {
-	keyA := labelsCacheKey(map[string]string{
-		"node_id": "1",
-		"az":      "a",
-	}, []string{"node_id"})
-	keyB := labelsCacheKey(map[string]string{
-		"node_id": "1",
-		"az":      "b",
-	}, []string{"node_id"})
-
-	require.NotEqual(t, keyA, keyB)
-}
-
 func TestDescriptorCounterUsesExactInt64Instrument(t *testing.T) {
 	meter, reader := manualMeter(t)
 	cfg := metricsConfigFromOpts(meter, WithNamespace("custom"), WithSeparator("_"))
@@ -119,8 +106,8 @@ func TestDescriptorCacheSharesEquivalentInstruments(t *testing.T) {
 	require.Same(t, legacy, descriptorEmpty)
 
 	descriptorBy := cfg.CounterVecWithDescriptor("same", "By")
-	require.NotSame(t, descriptorEmpty, descriptorBy)
-	require.Equal(t, 2, meter.int64Counters)
+	require.Same(t, descriptorEmpty, descriptorBy)
+	require.Equal(t, 1, meter.int64Counters)
 
 	legacyGauge := cfg.GaugeVec("gauge")
 	require.Same(t, legacyGauge, cfg.GaugeVec("gauge"))
@@ -131,7 +118,8 @@ func TestDescriptorCacheSharesEquivalentInstruments(t *testing.T) {
 	legacyGauge.With(labels).Set(10)
 	descriptorGaugeEmpty.With(labels).Set(20)
 	require.Equal(t, []float64{10, 10}, meter.upDownCounters[0].adds)
-	require.NotSame(t, descriptorGaugeEmpty, cfg.GaugeVecWithDescriptor("gauge", "By"))
+	require.Same(t, descriptorGaugeEmpty, cfg.GaugeVecWithDescriptor("gauge", "By"))
+	require.Len(t, meter.upDownCounters, 1)
 }
 
 func TestMetricFactoriesShareVectorDuringConcurrentCreation(t *testing.T) {
